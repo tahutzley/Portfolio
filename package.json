@@ -1,0 +1,18 @@
+{
+  "name": "four-nations-portfolio",
+  "private": true,
+  "version": "2.0.0",
+  "type": "module",
+  "description": "Timothy Hutzley — portfolio. Four Nations map hub with elemental spoke pages.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "gsap": "^3.13.0"
+  },
+  "devDependencies": {
+    "vite": "^7.0.0"
+  }
+}

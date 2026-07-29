@@ -1,0 +1,49 @@
+/* ═══ RESPONSIVE ══════════════════════════════════════════════════════════
+   Below 880px the map is the ONLY navigation — see CARTOUCHE-PLAN.md. The
+   regions and seals stay live; they just stop navigating on first touch and
+   SELECT instead (hover.js's tap-to-select), which is what makes a target
+   this irregular safe to tap. The SVG cartouches are illegible at this
+   scale, so #mapBar carries their job instead — see the MAP BAR block in
+   hub.css. */
+@media (max-width:880px){
+  .cart{display:none}
+  .tl-item{grid-template-columns:1fr;gap:.6rem}
+  .card{grid-template-columns:1fr}
+  .card-media{display:none}
+  .spoke-head{grid-template-columns:1fr}
+}
+
+/* No hover hardware at all (touch-primary devices).
+
+   Between 880px and desktop width the regions are still interactive, and a
+   tap that turns into a scroll fires mouseenter with no mouseleave ever
+   following — stranding the map with one nation glowing and the other
+   three permanently dimmed. hover.js refuses to enter the hot state on
+   touch, and this block is the belt to that suspenders: every hot-state
+   rule gets neutralised, not just the desaturation.
+
+   `:not(.is-sel)` / `:not(.sel)` on every rule here is new: a deliberate
+   tap-selection (hover.js's selKey) SHOULD light up on touch — only the
+   accidental scroll-tap hazard these rules exist for gets suppressed. */
+@media (hover:none){
+  .map-frame.dim .region:not(.is-hot):not(.is-sel){filter:none}
+  .map-frame.dim #oceanVeil{opacity:0}
+  .region.is-hot:not(.is-sel) .glow-layer{opacity:0}
+  .region.is-hot:not(.is-sel) .mass{filter:none}
+  /* The seals are lit from the same state as .is-hot, so they need
+     suppressing too — otherwise they brighten alone, with none of the
+     other cues, which reads as a glitch rather than an affordance.
+
+     This value has to track the rest opacity in hub.css, not sit at some
+     independent number: the point is to make a lit seal look UNLIT, and
+     when rest went .5 → .88 this was left behind, so on touch a tapped seal
+     went darker than its neighbours instead of matching them. */
+  .seal.lit:not(.sel){opacity:.88}
+  .seal.lit:not(.sel) .seal-mark{transform:none}
+
+  /* .region:focus-visible drops its outline on the assumption that the
+     glow IS the focus affordance. Everything above just switched the glow
+     off — so on a tablet with a keyboard attached, tabbing the map would
+     otherwise show nothing at all. Put a real outline back. */
+  .region:focus-visible{outline:2.5px solid var(--paper);outline-offset:2px}
+}

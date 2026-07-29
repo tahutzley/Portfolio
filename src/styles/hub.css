@@ -1,0 +1,229 @@
+/* ═══ HUB — the scroll ════════════════════════════════════════════════════
+   Full-bleed page. The parchment fiber texture is part of #hub's own
+   background (background-blend-mode multiplies the grain into the paper
+   color at the paint step), so it sits beneath every child element —
+   cards and the linktree paint on top of it, never under an overlay. */
+#hub{
+  min-height:100dvh;display:flex;flex-direction:column;align-items:center;
+  padding:clamp(1rem,3vw,2.5rem);
+  background-color:var(--paper);
+  background-image:var(--grain-img);
+  background-blend-mode:multiply;
+  background-size:260px 260px;
+}
+
+.hub-head{text-align:center;max-width:90vw;margin:clamp(.5rem,2vw,1.5rem) auto clamp(1rem,2.5vw,2rem)}
+.hub-name{
+  font-family:var(--face-serif);
+  font-size:clamp(1rem, 2.6vw, 1.7rem);line-height:1;margin:0;
+  letter-spacing:.01em;font-weight:500;
+  white-space:nowrap;
+}
+.hub-line{margin:1.1em auto 0;max-width:46ch;color:var(--ink-soft);font-size:var(--t-0);
+  font-family:var(--face-serif)}
+
+.map-frame{width:min(100%,1180px);margin-inline:auto}
+.map-frame svg{display:block;width:100%;height:auto}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   PHASE 3 — MAP HOVER
+   ───────────────────────────────────────────────────────────────────────────
+   Three things happen together, and they are deliberately the ONLY three:
+
+     1. the hovered nation grows a glow that traces its actual coastline
+     2. every other nation desaturates to near-grey
+     3. the ocean recedes a step darker
+
+   The old `translateY(-7px)` island lift is intentionally absent. See
+   REDESIGN-PLAN.md Phase 3 — it is three lines to restore if the map still
+   reads flat once these three are in, but adding it now risks the whole
+   thing feeling busy.
+
+   `.is-hot` is set by JS rather than relying on :hover, so the same visual
+   state can be driven by focus, touch, or programmatically.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.region{cursor:pointer}
+.region:focus-visible{outline:none}
+
+/* — 1. Coastline glow —————————————————————————————————————————————————
+   A duplicate of the landmass shapes, permanently wearing the per-nation
+   glow filter, sitting *behind* the real ones. Only its opacity animates.
+
+   This is the important performance decision: tweening the filter's own
+   stdDeviation/flood-opacity would re-run the whole feMorphology →
+   feGaussianBlur graph every frame, which is expensive over shapes this
+   large. Fading a pre-rendered filtered layer is a compositor-only
+   operation, so it stays cheap even on mobile. */
+.region .glow-layer{
+  opacity:0;
+  pointer-events:none;
+  transition:opacity var(--dur-hover) var(--ease-ink);
+}
+.region.is-hot .glow-layer{opacity:1}
+
+/* — 2. Desaturate the others ——————————————————————————————————————————
+   Was `opacity:.55`, which let the seigaiha wave pattern show *through* the
+   landmasses and turned them muddy rather than recessed. Desaturating keeps
+   them fully opaque and drops them to near-greyscale, so the hovered nation
+   is the only colour on the map. */
+.map-frame.dim .region:not(.is-hot){
+  filter:saturate(.10) brightness(.80);
+}
+.region{transition:filter var(--dur-hover) var(--ease-ink)}
+
+/* Keep the hovered nation's own ink crisp while everything else greys out.
+   The transition has to be declared on .mass itself — the one on .region
+   above governs a different element and won't reach these. Without it the
+   three cold nations fade over 450ms while the hot one snaps. */
+.region .mass{transition:filter var(--dur-hover) var(--ease-ink)}
+.region.is-hot .mass{filter:saturate(1.06) brightness(1.04)}
+
+/* — 3. Ocean recede ————————————————————————————————————————————————————
+   A dark veil over the seigaiha field, transparent at rest. Pulling the
+   whole sea back a step is what sells the depth now that the lift is gone. */
+#oceanVeil{
+  opacity:0;
+  pointer-events:none;
+  transition:opacity var(--dur-hover) var(--ease-ink);
+}
+.map-frame.dim #oceanVeil{opacity:.42}
+
+/* Corner seals answer the map */
+/* Rest opacity was .5, which on top of the old dark plate left the seals
+   reading as smudges. It has to be high: these sit on the seigaiha, so
+   whatever the plate does NOT cover is deep purple showing through, and
+   anything much below .85 turns bright paper into grey-violet mud. .88
+   still reads as a step down from a lit seal without doing that. */
+/* Pointer, because the seal is a second handle on its nation now — see the
+   seals block in hover.js. The plate rect is filled, so the whole 148-unit
+   square is the target, not just the ink in it. */
+.seal{
+  opacity:.88;cursor:pointer;
+  transition:opacity .45s var(--ease-ink), filter var(--dur-hover) var(--ease-ink);
+}
+
+/* And the seals have to answer the dim, not just the map. At .5 they were
+   faint enough that nobody noticed they held full saturation while every
+   region greyed out; at .88 they are not, and three bright coloured discs
+   sitting over a desaturated map reads as an oversight. Same filter as
+   `.map-frame.dim .region:not(.is-hot)` above — one rule, one look. */
+.map-frame.dim .seal:not(.lit){filter:saturate(.10) brightness(.80)}
+.seal .seal-mark{transition:transform .45s var(--ease-ink);transform-box:fill-box;transform-origin:center}
+.seal.lit{opacity:1}
+.seal.lit .seal-mark{transform:scale(1.04)}
+
+.hub-foot{
+  width:min(100%,1180px);margin:clamp(1.2rem,3vw,2.4rem) auto 0;
+  display:flex;flex-wrap:wrap;gap:.4em 2.2em;justify-content:center;
+  padding:1.4rem 1rem 1.6rem;border-top:1px solid var(--ink-faint);
+}
+.hub-foot a{color:var(--ink-soft);text-decoration:none;border-bottom:1px solid var(--ink-faint);
+  font-size:var(--t--1);letter-spacing:.14em;text-transform:uppercase;padding-bottom:.25em}
+.hub-foot a:hover{color:var(--ink);border-color:var(--ink)}
+
+/* ═══ NATION CARTOUCHES ═══════════════════════════════════════════════════
+   The plaque that unfolds from each corner seal, replacing the old
+   .panel-card grid — see CARTOUCHE-PLAN.md. Inert (pointer-events:none) at
+   rest; hover.js toggles .open per hover.js §4.
+
+   transform-box:fill-box is the same mechanism .seal-mark already uses — it
+   makes transform-origin resolve against this group's own bounding box
+   rather than the root viewBox, which is what lets one rule serve plaques
+   that grow in opposite directions. */
+.cart{pointer-events:none}
+.cart.open{pointer-events:auto;cursor:pointer}
+
+.cart-body{
+  transform-box:fill-box;
+  transform-origin:var(--cart-anchor) center;
+  transform:scaleX(0);
+  transition:transform .2s var(--ease-ink);
+}
+.cart.open .cart-body{transform:scaleX(1)}
+
+.cart[data-cart="air"],.cart[data-cart="fire"]  {--cart-anchor:left}
+.cart[data-cart="water"],.cart[data-cart="earth"]{--cart-anchor:right}
+
+/* Text fades in behind the leading edge rather than being stretched by it. */
+.cart-name,.cart-desc,.cart-arrow{
+  opacity:0;
+  transition:opacity .14s var(--ease-ink) .07s;
+}
+.cart.open :is(.cart-name,.cart-desc,.cart-arrow){opacity:1}
+
+.cart-name{font-family:var(--face-emphasis);font-weight:600;font-size:30px;
+  letter-spacing:.18em;fill:var(--ink)}
+.cart-desc{font-family:var(--face-body);font-size:24px;fill:var(--ink-soft)}
+
+/* ═══ MAP BAR (<880px) ════════════════════════════════════════════════════
+   Below 880px the SVG cartouches are illegible (see the .cart{display:none}
+   rule in responsive.css) and the regions/seals SELECT rather than navigate
+   — see hover.js's tap-to-select. This bar is where that selection reads:
+   a real <button> that starts on a hint and swaps to the picked nation once
+   hover.js's onSelect fires. Styled in the frame's vocabulary — paper field,
+   ink hairline, no lift, no shadow, no per-nation tint — so it stays quieter
+   than the map above it; the accent shows only on the arrow and the left
+   border. Hidden above 880px: the SVG plaque is the affordance there, and
+   the frame's own all-work cartouche is already the route to /all. */
+.map-bar,.map-all{display:none}
+
+@media (max-width:880px){
+  .map-bar{
+    display:flex;align-items:center;gap:.6em;width:100%;
+    margin:clamp(1rem,2.6vw,1.6rem) auto 0;padding:.9rem 1.1rem;
+    background:var(--paper);border:1px solid var(--ink-faint);
+    border-left:3px solid var(--ink-faint);
+    text-align:left;font:inherit;color:inherit;cursor:default;
+    transition:border-color .3s var(--ease-ink);
+  }
+  .map-bar .mb-content{display:none;flex:1;min-width:0;align-items:baseline;gap:.5em}
+  .map-bar.has-sel{cursor:pointer;border-left-color:var(--pk,var(--sea-line))}
+  .map-bar.has-sel .mb-hint{display:none}
+  .map-bar.has-sel .mb-content{display:flex}
+  .mb-hint{color:var(--ink-soft);font-size:var(--t--1);letter-spacing:.04em}
+  .mb-name{font-family:var(--face-emphasis);font-weight:600;font-size:var(--t-0);
+    letter-spacing:.06em;flex:none}
+  .mb-desc{color:var(--ink-soft);font-size:var(--t--1);overflow:hidden;
+    text-overflow:ellipsis;white-space:nowrap}
+  .mb-arrow{margin-left:auto;flex:none;color:var(--pk,var(--sea-line))}
+
+  .map-all{
+    display:block;margin:.7rem auto 0;text-align:center;
+    color:var(--ink-soft);text-decoration:none;font-size:var(--t--1);
+    letter-spacing:.14em;text-transform:uppercase;
+  }
+  .map-all:hover,.map-all:focus-visible{color:var(--ink)}
+}
+
+/* ═══ THE ALL-WORK CARTOUCHE ══════════════════════════════════════════════
+   The plaque centred on the map's bottom frame band (the top one is now
+   just a name plate — see .nameplate below). It is an SVG <g> carrying
+   role="link" and tabindex, not a <button>, so everything a button would
+   give for free is spelled out: the pointer, the focus ring, and (in
+   main.js) Enter/Space activation.
+
+   The plaque used to lift 6px on hover. It doesn't any more: the hover now
+   lights the entire map at once (see hover.js — the plaque sets .is-hot on
+   every region and .lit on every seal, the same state a single nation gets),
+   and a plate sliding upward on top of four coastlines igniting is one
+   motion too many. The .cart-face wrapper stays in meander.js: any future
+   transform on this plaque has to go on it and not on #allWork, whose
+   `transform` attribute is what positions it on the frame — a CSS transform
+   would override that presentation attribute and drop it at the origin. */
+#allWork{cursor:pointer}
+#allWork:focus-visible{outline:none}
+/* Lengths inside an SVG resolve to user units, not CSS pixels — these sizes
+   are all fractions of the map's 1728-unit width. Both plaques share the
+   same base rule; .cart-title/.cart-sub/.cart-items/.cart-cta size the
+   individual lines against it, since the bottom plaque carries three lines
+   to the top's two. */
+.cartouche text{
+  font-family:var(--face-body);pointer-events:none;
+}
+.cartouche .cart-title{font-size:28px;font-weight:600;letter-spacing:.18em}
+.cartouche .cart-sub{font-size:16px;font-weight:500;letter-spacing:.1em;fill-opacity:.68}
+#allWork .cart-items{font-size:15px;font-weight:500;letter-spacing:.02em;fill-opacity:.85}
+#allWork .cart-cta{font-size:14px;font-weight:600;letter-spacing:.16em;fill-opacity:.68}
+#allWork:hover .cart-cta,#allWork:focus-visible .cart-cta{fill:var(--sea-line);fill-opacity:1}
+#allWork:focus-visible .plate{stroke-width:7}

@@ -1,0 +1,1134 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Portfolio — Four Nations</title>
+
+<!--
+  ============================================================================
+  FOUR NATIONS PORTFOLIO — working prototype
+  ----------------------------------------------------------------------------
+  Everything you edit lives in the CONFIG block at the top of the <script> tag
+  at the bottom of this file. Add a project by dropping an object into the
+  `projects` array of whichever nation it belongs to. Nothing else needs to
+  change — cards, counts, and detail panes all build themselves.
+
+  All artwork here is original: traditional motifs (seigaiha wave scales,
+  meander border, ink-brush mountain glyphs, enso seals) rendered from scratch.
+  No show assets are used, and none should be added.
+  ============================================================================
+-->
+
+<style>
+/* ═══ TOKENS ══════════════════════════════════════════════════════════════ */
+:root{
+  /* Shared ground — the parchment the whole scroll is mounted on */
+  --paper:        #d9cbab;
+  --paper-deep:   #c2b191;
+  --paper-edge:   #a8916b;
+  --ink:          #241c14;
+  --ink-soft:     #4a3b2a;
+  --ink-faint:    rgba(36,28,20,.42);
+
+  /* Parchment grain — fine isotropic noise, tiled seamlessly (stitchTiles)
+     so no repeat seam or directional streak is visible, kept to a low
+     rect opacity so it reads as a faint irregularity in the paper rather
+     than a pattern. Baked into the Hub's own background (via
+     background-blend-mode below) so it's always beneath the page's
+     content, never an overlay drawn on top of cards or links. */
+  --grain-img: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='260' height='260'><filter id='p' x='0%25' y='0%25' width='100%25' height='100%25'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' seed='7' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/></filter><rect width='260' height='260' filter='url(%23p)' opacity='0.14'/></svg>");
+
+  /* Ocean — the connective tissue between every nation */
+  --sea:          #3a3760;
+  --sea-deep:     #2b2949;
+  --sea-line:     #5d5a8c;
+
+  /* Nation grounds — each spoke sits on its own earth */
+  --water-ground: #12283c;  --water-mass: #b9d6e8;  --water-key: #7fb4d6;  --water-glow: #d8ecf8;
+  --earth-ground: #1d2716;  --earth-mass: #e3d2a2;  --earth-key: #7d9c46;  --earth-glow: #f0e4bd;
+  --fire-ground:  #240d09;  --fire-mass:  #e07b3c;  --fire-key:  #c8451c;  --fire-glow:  #f4b463;
+  --air-ground:   #2a1e12;  --air-mass:   #eceae2;  --air-key:   #d98f2c;  --air-glow:   #f7f2e6;
+
+  /* Type scale — major third (1.25), fluid */
+  --t--1: clamp(.72rem, .70rem + .12vw, .80rem);
+  --t-0:  clamp(1rem, .96rem + .18vw, 1.09rem);
+  --t-1:  clamp(1.20rem, 1.13rem + .30vw, 1.36rem);
+  --t-2:  clamp(1.44rem, 1.32rem + .52vw, 1.70rem);
+  --t-3:  clamp(1.73rem, 1.53rem + .86vw, 2.13rem);
+  --t-4:  clamp(2.07rem, 1.75rem + 1.38vw, 2.66rem);
+  --t-5:  clamp(2.49rem, 1.98rem + 2.20vw, 3.33rem);
+
+  /* Faces. Swap these two lines for real webfonts when you go to production —
+     a high-contrast old-style serif for display, a quiet humanist for body. */
+  --face-display: "Palatino Linotype","Book Antiqua",Palatino,"Iowan Old Style",Georgia,serif;
+  --face-body:    ui-sans-serif,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;
+
+  --measure: 62ch;
+  --ease-ink: cubic-bezier(.22,.68,.24,1);
+}
+
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0;
+  background:var(--paper);
+  color:var(--ink);
+  font:var(--t-0)/1.65 var(--face-body);
+  overflow-x:hidden;
+}
+
+/* ═══ SCROLLBARS ══════════════════════════════════════════════════════════
+   The page scroll and the detail sheet's own inner scroll are two separate
+   scrolling boxes (window vs. element), which browsers render with
+   different default chrome. Style both explicitly so they paint identically. */
+html,#sheet .panel{
+  scrollbar-width:thin;
+  scrollbar-color:var(--ink-soft) var(--paper-deep);
+}
+html::-webkit-scrollbar,#sheet .panel::-webkit-scrollbar{width:12px}
+html::-webkit-scrollbar-track,#sheet .panel::-webkit-scrollbar-track{background:var(--paper-deep)}
+html::-webkit-scrollbar-thumb,#sheet .panel::-webkit-scrollbar-thumb{
+  background:var(--ink-soft);border-radius:7px;border:3px solid var(--paper-deep)}
+html::-webkit-scrollbar-thumb:hover,#sheet .panel::-webkit-scrollbar-thumb:hover{background:var(--ink)}
+
+::selection{background:var(--ink);color:var(--paper)}
+:focus-visible{outline:2.5px solid currentColor;outline-offset:4px;border-radius:2px}
+
+/* ═══ SHARED PARTS ════════════════════════════════════════════════════════ */
+.cartouche{
+  font-family:var(--face-display);
+  letter-spacing:.24em;text-transform:uppercase;
+  font-size:var(--t--1);
+}
+.rule{height:1px;background:var(--ink-faint);border:0;margin:0}
+
+.brushbtn{
+  font:600 var(--t--1)/1 var(--face-body);
+  letter-spacing:.16em;text-transform:uppercase;
+  background:none;border:0;color:inherit;cursor:pointer;
+  padding:.9em 0;display:inline-flex;gap:.7em;align-items:center;
+}
+.brushbtn span{display:inline-block;transition:transform .35s var(--ease-ink)}
+.brushbtn:hover span:first-child{transform:translateX(-5px)}
+
+/* ═══ HUB — the scroll ════════════════════════════════════════════════════
+   Full-bleed page. The parchment fiber texture is part of #hub's own
+   background (background-blend-mode multiplies the grain into the paper
+   color at the paint step), so it sits beneath every child element —
+   cards and the linktree paint on top of it, never under an overlay. */
+#hub{
+  min-height:100dvh;display:flex;flex-direction:column;align-items:center;
+  padding:clamp(1rem,3vw,2.5rem);
+  background-color:var(--paper);
+  background-image:var(--grain-img);
+  background-blend-mode:multiply;
+  background-size:260px 260px;
+}
+
+.hub-head{text-align:center;max-width:52ch;margin:clamp(.5rem,2vw,1.5rem) auto clamp(1rem,2.5vw,2rem)}
+.hub-name{
+  font-family:var(--face-display);
+  font-size:var(--t-5);line-height:1;margin:0;
+  letter-spacing:.02em;font-weight:400;
+}
+.hub-name em{font-style:normal;display:block;font-size:var(--t--1);letter-spacing:.42em;
+  text-transform:uppercase;color:var(--ink-soft);margin-bottom:.9em;padding-left:.42em}
+.hub-line{margin:1.1em auto 0;max-width:46ch;color:var(--ink-soft);font-size:var(--t-0)}
+
+.map-frame{width:min(100%,1180px);margin-inline:auto}
+.map-frame svg{display:block;width:100%;height:auto}
+
+/* Region interaction */
+.region{cursor:pointer;transform-origin:center;transition:transform .5s var(--ease-ink)}
+.region .mass{transition:filter .5s var(--ease-ink)}
+.region:hover,.region:focus-visible{transform:translateY(-7px)}
+.region:hover .mass,.region:focus-visible .mass{filter:brightness(1.13) saturate(1.1)}
+.region:focus-visible{outline:none}
+.region .halo{opacity:0;pointer-events:none;transition:opacity .5s var(--ease-ink)}
+.region:hover .halo,.region:focus-visible .halo{opacity:.55}
+.region .tag{transition:opacity .4s var(--ease-ink),transform .5s var(--ease-ink)}
+.region:hover .tag,.region:focus-visible .tag{transform:translateY(-3px)}
+.dim .region:not(:hover):not(:focus-visible){opacity:.55;transition:opacity .4s var(--ease-ink)}
+
+/* Corner seals answer the map */
+.seal{transition:opacity .45s var(--ease-ink);opacity:.5}
+.seal .seal-mark{transition:transform .45s var(--ease-ink);transform-box:fill-box;transform-origin:center}
+.seal.lit{opacity:1}
+.seal.lit .seal-mark{transform:scale(1.04)}
+
+.hub-foot{
+  width:min(100%,1180px);margin:clamp(1.2rem,3vw,2.4rem) auto 0;
+  display:flex;flex-wrap:wrap;gap:.4em 2.2em;justify-content:center;
+  padding:1.4rem 1rem 1.6rem;border-top:1px solid var(--ink-faint);
+}
+.hub-foot a{color:var(--ink-soft);text-decoration:none;border-bottom:1px solid var(--ink-faint);
+  font-size:var(--t--1);letter-spacing:.14em;text-transform:uppercase;padding-bottom:.25em}
+.hub-foot a:hover{color:var(--ink);border-color:var(--ink)}
+
+/* Panel grid — the four sections named plainly, plus the Lotus below.
+   Doubles as the tap-target grid on small screens, where the map's
+   regions go inert (see .region pointer-events rule further down). */
+.panel-grid{
+  width:min(100%,1180px);margin:clamp(1.6rem,3.4vw,2.6rem) auto 0;
+  display:grid;grid-template-columns:1fr 1fr;gap:clamp(.7rem,1.8vw,1rem);
+}
+.panel-card{
+  position:relative;display:flex;align-items:center;gap:1.15rem;
+  background:var(--paper-deep);
+  border:1px solid var(--ink-faint);
+  padding:clamp(1.1rem,2.6vw,1.5rem) clamp(1.2rem,3vw,1.7rem);
+  text-align:left;font:inherit;color:inherit;cursor:pointer;
+  transition:transform .4s var(--ease-ink),border-color .4s var(--ease-ink),
+             background-color .4s var(--ease-ink),box-shadow .4s var(--ease-ink);
+}
+.panel-card svg{width:clamp(44px,5.6vw,56px);height:clamp(44px,5.6vw,56px);flex:none;
+  transition:transform .45s var(--ease-ink)}
+.panel-card .pc-text{min-width:0}
+.panel-card .pc-text b{display:block;font-family:var(--face-display);font-weight:400;
+  font-size:var(--t-2);letter-spacing:.01em}
+.panel-card .pc-text i{display:block;font-style:normal;margin-top:.3em;font-size:var(--t--1);
+  letter-spacing:.15em;text-transform:uppercase;color:var(--ink-soft);
+  transition:color .4s var(--ease-ink)}
+.panel-card:hover,.panel-card:focus-visible{
+  transform:translateY(-5px);
+  border-color:var(--pk);
+  background:color-mix(in srgb, var(--pk) 22%, var(--paper-deep));
+  box-shadow:0 16px 32px -20px var(--pk);
+}
+.panel-card:hover svg,.panel-card:focus-visible svg{transform:scale(1.08) rotate(-4deg)}
+.panel-card:hover .pc-text i,.panel-card:focus-visible .pc-text i{color:var(--pk)}
+.panel-card:focus-visible{outline:none}
+
+/* The Lotus — spans both columns. Not one nation's color: the sea's,
+   the thing that's already the connective tissue between all four. */
+.lotus-card{grid-column:1/-1;--pk:var(--sea-line);align-items:flex-start}
+.lotus-card svg{width:clamp(50px,6.4vw,64px);height:clamp(50px,6.4vw,64px);margin-top:.15em}
+.lotus-card .pc-text p{margin:.55em 0 0;font-size:var(--t--1);color:var(--ink-soft);
+  line-height:1.55;max-width:52ch;transition:color .4s var(--ease-ink)}
+.lotus-card:hover .pc-text p,.lotus-card:focus-visible .pc-text p{color:var(--ink)}
+
+@media (max-width:600px){
+  .panel-grid{grid-template-columns:1fr}
+  .lotus-card{grid-column:auto}
+}
+
+/* ═══ SPOKE — a nation ════════════════════════════════════════════════════
+   Same parchment-fiber texture as #hub, blended with soft-light instead of
+   multiply — multiply would just crush the grain into these dark grounds. */
+#spoke{
+  display:none;min-height:100dvh;color:var(--fg);
+  background-color:var(--bg);
+  background-image:var(--grain-img);
+  background-blend-mode:soft-light;
+  background-size:260px 260px;
+}
+#spoke.on{display:block}
+.wrap{width:min(100%,1100px);margin-inline:auto;padding:clamp(1.5rem,4vw,3.5rem) clamp(1.1rem,4vw,2.5rem)}
+
+.spoke-top{display:flex;justify-content:space-between;align-items:center;gap:1rem;
+  padding-bottom:2.5rem}
+.spoke-top .brushbtn{color:var(--fg)}
+.spoke-top .spoke-symbol{display:inline-flex;flex:none}
+.spoke-top .spoke-symbol svg{width:clamp(30px,4vw,42px);height:clamp(30px,4vw,42px);display:block}
+
+.spoke-head{display:grid;grid-template-columns:auto 1fr;gap:clamp(1.2rem,3vw,2.4rem);
+  align-items:start;padding-bottom:clamp(2rem,5vw,3.5rem)}
+.spoke-head svg{width:clamp(74px,11vw,116px);height:auto;flex:none}
+.spoke-kicker{font-size:var(--t--1);letter-spacing:.34em;text-transform:uppercase;
+  color:var(--accent);margin:0 0 .7em}
+.spoke-title{font-family:var(--face-display);font-weight:400;font-size:var(--t-4);
+  line-height:1.05;margin:0}
+.spoke-blurb{margin:1.1em 0 0;max-width:var(--measure);color:var(--fg-soft);font-size:var(--t-1);
+  line-height:1.6}
+
+.sec-label{display:flex;align-items:baseline;gap:1rem;margin:0 0 1.8rem;
+  font-size:var(--t--1);letter-spacing:.3em;text-transform:uppercase;color:var(--accent)}
+.sec-label::after{content:"";flex:1;height:1px;background:currentColor;opacity:.32}
+
+/* Projects stack one per row (no auto-fill columns) — each row splits into
+   the write-up on the left and a reserved slot on the right for a project
+   image. With no image set, that slot just stays blank paper. */
+.grid{display:grid;gap:1px;background:var(--hair);border:1px solid var(--hair)}
+.card{background:var(--bg);padding:clamp(1.4rem,3vw,2rem);
+  display:grid;grid-template-columns:1fr minmax(220px,38%);gap:clamp(1.2rem,3vw,2.2rem);
+  text-align:left;font:inherit;color:inherit;border:0;cursor:pointer;
+  transition:background .35s var(--ease-ink)}
+.card:hover,.card:focus-visible{background:var(--bg-lift)}
+.card-body{display:flex;flex-direction:column;gap:.9rem;min-width:0}
+.card h3{font-family:var(--face-display);font-weight:400;font-size:var(--t-2);margin:0;line-height:1.15}
+.card .meta{font-size:var(--t--1);letter-spacing:.2em;text-transform:uppercase;color:var(--accent);margin:0}
+.card-body p{margin:0;color:var(--fg-soft);font-size:var(--t-0)}
+.card-media{background:var(--bg-lift);min-height:140px;border:1px solid var(--hair)}
+.card-media img{width:100%;height:100%;object-fit:cover;display:block}
+.tags{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:auto;padding-top:.5rem}
+.tag-chip{font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;
+  border:1px solid var(--hair);padding:.35em .7em;color:var(--fg-soft)}
+
+.timeline{display:grid;gap:1px;background:var(--hair);border:1px solid var(--hair);margin-bottom:3.5rem}
+.tl-item{background:var(--bg);padding:clamp(1.4rem,3vw,2rem);
+  display:grid;grid-template-columns:minmax(150px,220px) 1fr;gap:1.4rem}
+.tl-when{font-size:var(--t--1);letter-spacing:.2em;text-transform:uppercase;color:var(--accent)}
+.tl-item h3{font-family:var(--face-display);font-weight:400;font-size:var(--t-2);margin:0 0 .5em}
+.tl-item p{margin:0;color:var(--fg-soft);max-width:var(--measure)}
+
+/* Shared link-button row — used in the detail sheet and timeline entries. */
+.link-row{display:flex;flex-wrap:wrap;gap:.7rem;margin-top:1.1rem}
+.link-row a{color:var(--fg);text-decoration:none;border:1px solid var(--hair);
+  padding:.65em 1.15em;font-size:var(--t--1);letter-spacing:.14em;text-transform:uppercase}
+.link-row a:hover{background:var(--bg-lift)}
+
+.empty{border:1px dashed var(--hair);padding:2.4rem;color:var(--fg-soft);text-align:center;
+  font-size:var(--t-0)}
+
+/* ═══ DETAIL SHEET ════════════════════════════════════════════════════════ */
+#sheet{position:fixed;inset:0;z-index:50;display:none}
+#sheet.on{display:block}
+#sheet .scrim{position:absolute;inset:0;background:rgba(10,7,5,.62);opacity:0;
+  transition:opacity .4s var(--ease-ink)}
+#sheet.in .scrim{opacity:1}
+#sheet .panel{
+  position:absolute;inset:0;width:100%;height:100%;
+  background-color:var(--bg);
+  background-image:var(--grain-img);
+  background-blend-mode:soft-light;
+  background-size:260px 260px;
+  color:var(--fg);overflow-y:auto;
+  padding:clamp(1.6rem,4vw,3rem);
+  transform:translateY(26px);opacity:0;
+  transition:transform .5s var(--ease-ink),opacity .4s var(--ease-ink);
+}
+#sheet.in .panel{transform:none;opacity:1}
+#sheet .sheet-inner{max-width:900px;margin:0 auto}
+#sheet h2{font-family:var(--face-display);font-weight:400;font-size:var(--t-4);margin:.6em 0 .2em;line-height:1.08}
+#sheet .lede{color:var(--fg-soft);font-size:var(--t-1);max-width:var(--measure);margin:1em 0 2em}
+#sheet h4{font-size:var(--t--1);letter-spacing:.3em;text-transform:uppercase;color:var(--accent);
+  margin:2.4em 0 .9em;font-weight:600}
+#sheet p{max-width:var(--measure);color:var(--fg-soft)}
+#sheet ul{max-width:var(--measure);color:var(--fg-soft);padding-left:1.1em;margin:0}
+#sheet li{margin-bottom:.6em}
+#sheet .link-row{margin-top:2.4rem}
+#sheet .link-row a{padding:.75em 1.3em;letter-spacing:.16em}
+#sheet .sheet-media{margin:1.6rem 0 0;max-width:var(--measure)}
+#sheet .sheet-media img{width:100%;height:auto;display:block;border:1px solid var(--hair)}
+
+/* ═══ ALL WORK — every nation's spoke, stacked in one scroll ═════════════
+   Each nation-block below renders the exact same header/timeline/card
+   markup as its individual spoke page (see nationBody()), just wrapped in
+   its own full-bleed background band instead of taking over the whole
+   viewport. The page opens straight into Air's colors — the back button
+   and symbol live inside the first (Air) block, not a separate strip. */
+.allwork{--bg:var(--paper);--fg:var(--ink);--fg-soft:var(--ink-soft);
+  --accent:var(--ink-soft);--hair:rgba(36,28,20,.22);--bg-lift:rgba(255,255,255,.28)}
+
+.nation-block{
+  background-color:var(--bg);
+  background-image:var(--grain-img);
+  background-blend-mode:soft-light;
+  background-size:260px 260px;
+  color:var(--fg);
+}
+
+@keyframes plain-in{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+.enter-all .wrap{animation:plain-in .5s var(--ease-ink) both}
+
+/* ═══ ELEMENTAL TRANSITIONS ═══════════════════════════════════════════════
+   One system, four dialects. Air drifts, water wipes, earth lands hard,
+   fire flares. Transform + opacity only — nothing that triggers layout. */
+@keyframes air-in  {from{opacity:0;transform:translateY(-22px) scale(1.012);filter:blur(5px)}
+                    to  {opacity:1;transform:none;filter:none}}
+@keyframes water-in{from{opacity:0;transform:translateX(-40px)}
+                    to  {opacity:1;transform:none}}
+@keyframes earth-in{0%{opacity:0;transform:translateY(46px)}
+                    72%{opacity:1;transform:translateY(-4px)}
+                    100%{transform:none}}
+@keyframes fire-in {0%{opacity:0;transform:scale(.965);filter:brightness(2.1) saturate(.4)}
+                    45%{opacity:1;filter:brightness(1.35)}
+                    100%{transform:none;filter:none}}
+.enter-air   .wrap{animation:air-in   .70s var(--ease-ink) both}
+.enter-water .wrap{animation:water-in  .60s var(--ease-ink) both}
+.enter-earth .wrap{animation:earth-in .55s cubic-bezier(.3,.9,.2,1) both}
+.enter-fire  .wrap{animation:fire-in  .55s var(--ease-ink) both}
+
+/* Load sequence for the map */
+@keyframes draw{to{stroke-dashoffset:0}}
+@keyframes fade-in{to{opacity:1}}
+@keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+.boot .coast{stroke-dasharray:2600;stroke-dashoffset:2600;animation:draw 1.5s var(--ease-ink) forwards}
+.boot .mass{opacity:0;animation:fade-in .9s .55s var(--ease-ink) forwards}
+.boot .detail{opacity:0;animation:fade-in .8s .95s var(--ease-ink) forwards}
+.boot .tag{opacity:0;animation:rise .7s 1.15s var(--ease-ink) forwards}
+.boot .seal{opacity:0;animation:fade-in .8s 1.3s var(--ease-ink) forwards}
+.boot .seal.lit{opacity:1}
+.hub-head{animation:rise .8s var(--ease-ink) both}
+.hub-foot{animation:rise .8s .25s var(--ease-ink) both}
+
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.001ms!important;animation-delay:0ms!important;
+    transition-duration:.001ms!important}
+  .boot .coast{stroke-dashoffset:0}
+}
+
+/* ═══ RESPONSIVE ══════════════════════════════════════════════════════════ */
+@media (max-width:880px){
+  .region{pointer-events:none}
+  .tl-item{grid-template-columns:1fr;gap:.6rem}
+  .card{grid-template-columns:1fr}
+  .card-media{display:none}
+  .spoke-head{grid-template-columns:1fr}
+}
+</style>
+
+<!-- ═══════════════════════════ HUB ═══════════════════════════ -->
+<main id="hub" class="boot">
+  <header class="hub-head">
+    <h1 class="hub-name"><em id="hub-kicker"></em><span id="hub-title"></span></h1>
+    <p class="hub-line" id="hub-line"></p>
+  </header>
+
+  <div class="map-frame">
+    <svg id="map" viewBox="0 0 1600 1000" role="group" aria-label="Interactive map. Four regions lead to four sections of work.">
+      <defs>
+        <!-- Seigaiha: the traditional wave-scale field that carries the ocean -->
+        <pattern id="waves" width="64" height="32" patternUnits="userSpaceOnUse">
+          <rect width="64" height="32" fill="var(--sea-deep)"/>
+          <g fill="none" stroke="var(--sea-line)" stroke-width="2.2" opacity=".85">
+            <path d="M0,32 A32,32 0 0,1 64,32"/>
+            <path d="M9,32 A23,23 0 0,1 55,32"/>
+            <path d="M18,32 A14,14 0 0,1 46,32"/>
+            <path d="M27,32 A5,5 0 0,1 37,32"/>
+            <path d="M-32,16 A32,32 0 0,1 32,16"/>
+            <path d="M-23,16 A23,23 0 0,1 23,16"/>
+            <path d="M-14,16 A14,14 0 0,1 14,16"/>
+            <path d="M32,16 A32,32 0 0,1 96,16"/>
+            <path d="M41,16 A23,23 0 0,1 87,16"/>
+            <path d="M50,16 A14,14 0 0,1 78,16"/>
+          </g>
+        </pattern>
+        <filter id="soft" x="-30%" y="-30%" width="160%" height="160%">
+          <feGaussianBlur stdDeviation="14"/>
+        </filter>
+        <!-- Brush-edge: gives every coastline a bled, wet-ink border -->
+        <filter id="bleed" x="-8%" y="-8%" width="116%" height="116%">
+          <feTurbulence type="fractalNoise" baseFrequency="0.028" numOctaves="3" seed="7" result="n"/>
+          <feDisplacementMap in="SourceGraphic" in2="n" scale="5" xChannelSelector="R" yChannelSelector="G"/>
+        </filter>
+        <!-- Single key-fret tile, tiled around all four sides in JS -->
+        <path id="keyTile" d="M0,0 h20 v14 h-12 v12 h20"/>
+      </defs>
+
+      <!-- Ocean -->
+      <rect x="86" y="66" width="1428" height="868" fill="url(#waves)"/>
+
+      <!-- ── Meander border (traditional key fret), drawn as a stroked path ── -->
+      <g class="detail" fill="none" stroke="var(--paper-edge)" stroke-width="9" opacity=".95">
+        <rect x="46" y="26" width="1508" height="948"/>
+        <rect x="86" y="66" width="1428" height="868" stroke-width="5"/>
+      </g>
+      <g class="detail" fill="var(--paper-deep)" opacity=".92">
+        <path d="M46 26 h1508 v40 H46z M46 934 h1508 v40 H46z M46 26 v948 h40 V26z M1514 26 v948 h40 V26z"/>
+      </g>
+      <g class="detail" id="meander" fill="none" stroke="var(--paper)" stroke-width="4" opacity=".8"></g>
+
+      <!-- ═══ WATER — polar caps, top and bottom ═══ -->
+      <g class="region" data-nation="water" tabindex="0" role="link" aria-label="Water — data science work">
+        <ellipse class="halo" cx="880" cy="126" rx="180" ry="70" fill="var(--water-glow)" filter="url(#soft)"/>
+        <ellipse class="halo" cx="860" cy="892" rx="185" ry="66" fill="var(--water-glow)" filter="url(#soft)"/>
+        <g filter="url(#bleed)">
+          <path class="mass" fill="var(--water-mass)" stroke="var(--ink)" stroke-width="4"
+            d="M742 168 C 736 132, 780 104, 830 96 C 878 88, 914 106, 956 100 C 1000 94, 1032 112, 1026 138
+               C 1020 164, 982 172, 946 168 C 910 164, 892 180, 856 182 C 812 184, 748 190, 742 168 Z"/>
+          <path class="mass" fill="var(--water-mass)" stroke="var(--ink)" stroke-width="4"
+            d="M710 862 C 704 830, 748 812, 796 818 C 842 824, 866 844, 908 840 C 952 836, 992 852, 986 878
+               C 980 906, 936 918, 892 912 C 850 906, 826 920, 788 916 C 742 910, 716 890, 710 862 Z"/>
+        </g>
+        <g class="detail" fill="none" stroke="var(--ink)" stroke-width="3" stroke-linejoin="round" opacity=".78">
+          <path d="M792 140 l16 -22 l11 14 l13 -19 l19 27z"/>
+          <path d="M896 148 l14 -19 l10 12 l11 -16 l17 23z"/>
+          <path d="M770 878 l15 -21 l11 13 l12 -18 l18 26z"/>
+          <path d="M884 884 l14 -19 l10 12 l11 -16 l17 23z"/>
+        </g>
+        <g class="tag">
+          <rect x="1052" y="104" width="196" height="52" fill="var(--paper)" stroke="var(--ink)" stroke-width="3"/>
+          <text x="1150" y="130" text-anchor="middle" dominant-baseline="central" fill="var(--ink)"
+            font-family="Palatino, Georgia, serif" font-size="21" letter-spacing="5">WATER</text>
+        </g>
+      </g>
+
+      <!-- ═══ EARTH — the great continent, east ═══ -->
+      <g class="region" data-nation="earth" tabindex="0" role="link" aria-label="Earth — engineering work">
+        <ellipse class="halo" cx="1110" cy="520" rx="290" ry="270" fill="var(--earth-glow)" filter="url(#soft)"/>
+        <g filter="url(#bleed)">
+          <path class="mass coast" fill="var(--earth-mass)" stroke="var(--ink)" stroke-width="4.5"
+            d="M902 306 C 958 258, 1058 246, 1136 274 C 1206 300, 1252 274, 1304 296
+               C 1356 318, 1386 362, 1374 412 C 1362 460, 1326 480, 1338 522
+               C 1352 572, 1330 626, 1288 668 C 1248 708, 1230 756, 1178 780
+               C 1116 808, 1036 796, 986 764 C 936 732, 928 682, 898 650
+               C 862 612, 868 566, 890 526 C 910 488, 892 456, 864 434
+               C 834 410, 840 362, 880 340 C 896 331, 894 318, 902 306 Z"/>
+          <path class="mass" fill="var(--earth-mass)" stroke="var(--ink)" stroke-width="4.5"
+            d="M690 358 C 700 320, 748 302, 796 310 C 838 317, 862 338, 888 348
+               C 910 357, 914 380, 898 398 C 876 424, 842 414, 812 424
+               C 778 436, 758 462, 732 454 C 700 444, 680 400, 690 358 Z"/>
+        </g>
+        <!-- inland detail: mountain ranges + the ringed capital -->
+        <g class="detail" fill="none" stroke="var(--ink)" stroke-width="3" stroke-linejoin="round" opacity=".75">
+          <path d="M950 372 l18 -25 l13 16 l14 -21 l22 30z"/>
+          <path d="M1010 344 l16 -23 l12 15 l13 -19 l20 27z"/>
+          <path d="M1078 356 l17 -24 l12 15 l13 -20 l21 29z"/>
+          <path d="M962 592 l18 -25 l13 16 l14 -21 l22 30z"/>
+          <path d="M1032 620 l16 -22 l12 14 l13 -18 l20 26z"/>
+          <path d="M1108 700 l17 -24 l12 15 l13 -19 l21 28z"/>
+          <path d="M760 376 l15 -21 l11 13 l12 -18 l18 26z"/>
+          <circle cx="1246" cy="392" r="46" stroke-width="3.4"/>
+          <circle cx="1246" cy="392" r="30" stroke-width="2.6"/>
+          <circle cx="1246" cy="392" r="14" stroke-width="2.2"/>
+        </g>
+        <g class="tag">
+          <rect x="1288" y="812" width="196" height="52" fill="var(--paper)" stroke="var(--ink)" stroke-width="3"/>
+          <text x="1386" y="838" text-anchor="middle" dominant-baseline="central" fill="var(--ink)"
+            font-family="Palatino, Georgia, serif" font-size="21" letter-spacing="5">EARTH</text>
+        </g>
+      </g>
+
+      <!-- ═══ FIRE — volcanic archipelago, west ═══ -->
+      <g class="region" data-nation="fire" tabindex="0" role="link" aria-label="Fire — experiments and creative work">
+        <ellipse class="halo" cx="470" cy="600" rx="215" ry="150" fill="var(--fire-glow)" filter="url(#soft)"/>
+        <g filter="url(#bleed)">
+          <path class="mass" fill="var(--fire-mass)" stroke="var(--ink)" stroke-width="4.5"
+            d="M322 566 C 348 524, 406 508, 452 522 C 492 534, 514 560, 550 564
+               C 588 568, 610 596, 596 626 C 582 656, 542 662, 512 680
+               C 478 700, 440 714, 402 702 C 360 690, 332 658, 322 622
+               C 314 600, 314 582, 322 566 Z"/>
+          <path class="mass" fill="var(--fire-mass)" stroke="var(--ink)" stroke-width="4"
+            d="M614 552 C 640 534, 676 528, 700 540 C 724 552, 738 528, 758 534
+               C 780 541, 776 566, 752 572 C 726 578, 704 566, 682 574
+               C 656 584, 606 574, 614 552 Z"/>
+          <circle class="mass" cx="806" cy="556" r="17" fill="var(--fire-mass)" stroke="var(--ink)" stroke-width="4"/>
+        </g>
+        <!-- volcanic peaks + smoke curls -->
+        <g class="detail" fill="none" stroke="var(--ink)" stroke-width="3" stroke-linejoin="round" opacity=".8">
+          <path d="M356 604 l20 -30 l14 18 l16 -24 l24 36z"/>
+          <path d="M446 640 l18 -26 l13 16 l14 -21 l22 31z"/>
+          <path d="M528 606 l17 -25 l12 15 l13 -20 l21 30z"/>
+        </g>
+        <g class="detail" fill="none" stroke="var(--ink)" stroke-width="3.4" stroke-linecap="round" opacity=".62">
+          <path d="M376 566 C 374 534, 396 522, 392 500 C 389 484, 372 480, 366 490 C 360 501, 370 510, 379 504"/>
+          <path d="M464 606 C 462 578, 482 566, 478 546 C 475 531, 460 528, 455 537 C 450 547, 459 554, 467 549"/>
+          <path d="M546 578 C 544 552, 562 542, 558 524 C 555 511, 542 508, 538 516 C 534 525, 542 531, 549 527"/>
+        </g>
+        <g class="tag">
+          <rect x="228" y="748" width="196" height="52" fill="var(--paper)" stroke="var(--ink)" stroke-width="3"/>
+          <text x="326" y="774" text-anchor="middle" dominant-baseline="central" fill="var(--ink)"
+            font-family="Palatino, Georgia, serif" font-size="21" letter-spacing="5">FIRE</text>
+        </g>
+      </g>
+
+      <!-- ═══ AIR — high mountain isles, scattered ═══ -->
+      <g class="region" data-nation="air" tabindex="0" role="link" aria-label="Air — about, approach, and experience">
+        <ellipse class="halo" cx="500" cy="352" rx="150" ry="100" fill="var(--air-glow)" filter="url(#soft)"/>
+        <ellipse class="halo" cx="702" cy="796" rx="175" ry="90" fill="var(--air-glow)" filter="url(#soft)"/>
+        <ellipse class="halo" cx="1442" cy="662" rx="90" ry="80" fill="var(--air-glow)" filter="url(#soft)"/>
+        <g filter="url(#bleed)">
+          <path class="mass" fill="var(--air-mass)" stroke="var(--ink)" stroke-width="4"
+            d="M406 358 C 400 330, 428 310, 458 316 C 484 321, 496 338, 520 340
+               C 548 342, 562 362, 546 380 C 530 398, 498 392, 474 398
+               C 444 406, 412 386, 406 358 Z"/>
+          <path class="mass" fill="var(--air-mass)" stroke="var(--ink)" stroke-width="4"
+            d="M556 306 C 552 288, 574 276, 594 282 C 612 288, 622 306, 606 316 C 588 328, 560 324, 556 306 Z"/>
+          <path class="mass" fill="var(--air-mass)" stroke="var(--ink)" stroke-width="4"
+            d="M594 806 C 588 780, 618 762, 652 768 C 680 773, 698 790, 726 792
+               C 762 794, 786 810, 770 828 C 752 848, 706 840, 674 846
+               C 636 853, 600 832, 594 806 Z"/>
+          <path class="mass" fill="var(--air-mass)" stroke="var(--ink)" stroke-width="4"
+            d="M796 800 C 792 780, 818 768, 842 776 C 864 783, 872 802, 852 812 C 830 823, 800 818, 796 800 Z"/>
+          <path class="mass" fill="var(--air-mass)" stroke="var(--ink)" stroke-width="4"
+            d="M1398 624 C 1394 598, 1424 584, 1452 592 C 1478 599, 1494 622, 1482 646
+               C 1470 670, 1436 678, 1414 664 C 1398 654, 1400 640, 1398 624 Z"/>
+        </g>
+        <g class="detail" fill="none" stroke="var(--ink)" stroke-width="3" stroke-linejoin="round" opacity=".8">
+          <path d="M432 372 l19 -28 l13 17 l15 -22 l23 33z"/>
+          <path d="M498 366 l16 -24 l12 15 l13 -19 l20 28z"/>
+          <path d="M566 312 l13 -19 l9 12 l10 -15 l16 22z"/>
+          <path d="M632 820 l19 -28 l13 17 l15 -22 l23 33z"/>
+          <path d="M706 816 l16 -23 l12 14 l13 -19 l20 28z"/>
+          <path d="M812 806 l13 -19 l9 11 l10 -14 l16 22z"/>
+          <path d="M1420 646 l17 -25 l12 15 l13 -19 l21 29z"/>
+        </g>
+        <g class="tag">
+          <rect x="118" y="290" width="196" height="52" fill="var(--paper)" stroke="var(--ink)" stroke-width="3"/>
+          <text x="216" y="316" text-anchor="middle" dominant-baseline="central" fill="var(--ink)"
+            font-family="Palatino, Georgia, serif" font-size="21" letter-spacing="5">AIR</text>
+        </g>
+      </g>
+
+      <!-- ═══ Corner seals — enso rings, one per nation ═══ -->
+      <g id="seals"></g>
+
+      <!-- Title cartouche, bottom -->
+      <g class="detail">
+        <rect x="620" y="944" width="360" height="0" fill="none"/>
+      </g>
+    </svg>
+  </div>
+
+  <div class="panel-grid" id="panelGrid"></div>
+
+  <nav class="hub-foot" id="hubFoot"></nav>
+</main>
+
+<!-- ═══════════════════════════ SPOKE ═══════════════════════════ -->
+<section id="spoke" aria-live="polite"></section>
+
+<!-- ═══════════════════════════ DETAIL SHEET ═══════════════════════════ -->
+<div id="sheet" role="dialog" aria-modal="true" aria-label="Project detail">
+  <div class="scrim" data-close></div>
+  <div class="panel" id="panel"></div>
+</div>
+
+<script>
+/* ╔══════════════════════════════════════════════════════════════════════╗
+   ║  CONFIG — this is the only part you need to touch.                   ║
+   ║  Add a project: drop an object into the right nation's `projects`.   ║
+   ║  Every field except `title` is optional; blanks just don't render.   ║
+   ║                                                                        ║
+   ║  COPY-PASTE TEMPLATES ── paste any of these lines straight into a     ║
+   ║  project's or timeline entry's `links: [ ]` array:                    ║
+   ║                                                                        ║
+   ║    { label: "Live",     href: "https://your-deployed-url.com" },     ║
+   ║    { label: "Source",   href: "https://github.com/you/repo" },       ║
+   ║    { label: "Demo",     href: "https://youtube.com/watch?v=..." },   ║
+   ║    { label: "Write-up", href: "https://..." },                       ║
+   ║                                                                        ║
+   ║  Every project can also take an `image` field — a URL or /path.png — ║
+   ║  which fills the blank slot on the right of its card and shows atop  ║
+   ║  its detail sheet. Leave it out and the slot just stays blank paper. ║
+   ║  Timeline entries (the `timeline` array) take the same `links` field.║
+   ╚══════════════════════════════════════════════════════════════════════╝ */
+
+const SITE = {
+  kicker : "Computer Science + Data Science",
+  name   : "Timothy Hutzley",
+  line   : "",
+  links  : [
+    { label: "Email",    href: "mailto:thutzley1@gmail.com" },
+    { label: "GitHub",   href: "https://github.com/tahutzley" },
+    { label: "LinkedIn", href: "https://linkedin.com/in/timothy-hutzley-063074340" },
+    { label: "Resume",   href: "Timothy_Hutzley_Resume.pdf" }
+  ]
+};
+
+const NATIONS = {
+  water: {
+    name    : "Water",
+    kicker  : "Data Science & Analytics",
+    title   : "Work that moves data from one shape to another",
+    blurb   : "Waterbending is redirection — taking what's already there and giving it a direction. Analysis, modeling, pipelines, and the unglamorous cleaning that makes any of it possible.",
+    projects: [
+      {
+        title  : "Financial Literacy Learning Platform",
+        meta   : "August 2025 – May 2026 · Senior Capstone",
+        summary: "An interactive learning platform using financial simulations, user research, and A/B testing to improve financial comprehension.",
+        tags   : ["D3.js", "Firebase", "Prolific", "A/B Testing"],
+        problem: "Financial concepts such as budgeting, compound interest, and portfolio diversification are difficult to understand from static explanations alone.",
+        decisions: [
+          "Built interactive D3.js simulations that accepted sample or user-entered data, making the underlying concepts explorable instead of purely descriptive.",
+          "Used five usability studies and two 12-participant A/B-test waves to evaluate a state-aware AI coach with a custom engagement rubric."
+        ],
+        outcome: "Higher-engagement participants averaged 1.1 points better on a 10-point financial-literacy assessment; owned Firebase authentication, Firestore, and storage end to end.",
+        image: "MakeNCents.png",
+        links  : [
+          { label: "Live", href: "https://makencents.web.app/" },
+          { label: "WPI Published Report", href: "Financial Literacy Learning Platform Write Up.pdf" }
+        ]
+      },
+      {
+        title  : "Airline Customer Experience Dashboard",
+        meta   : "November 2025 · Business Intelligence Final Project",
+        summary: "A Tableau dashboard that turns 129,880 passenger surveys into service and satisfaction insights.",
+        tags   : ["Tableau", "SQL", "Data Modeling", "KPI Design"],
+        problem: "The survey data scattered 14 service-rating fields across a wide table, making it difficult to compare customer experience across passenger segments.",
+        decisions: [
+          "Pivoted the ratings into a 1.8M-row long-format extract so the dashboard could support flexible dimensions and service-level comparisons.",
+          "Defined calculated KPIs for overall, total, and digital experience, then connected filter actions across class, loyalty, travel purpose, age, and distance."
+        ],
+        outcome: "Business-class satisfaction measured 69.4% versus 18.8% for Economy; online boarding was the widest service gap at 0.90/5.",
+        image  : "Tableau.png",
+        links  : [
+          { label: "Dashboard Live", href: "https://public.tableau.com/app/profile/timothy.hutzley/viz/AirlinePassengerSatisfactionDashboard_17724052429950/Dashboard1" },
+          { label: "Write Up", href: "Airline Passenger Satisfaction Write Up.pdf" }
+        ]
+      },
+      {
+        title  : "German Traffic Sign Classification",
+        meta   : "November - December 2024 · Machine Learning Final Project",
+        summary: "A computer-vision study comparing a custom CNN with fine-tuned ResNet50 and VGG16 models on 43 classes of German traffic signs.",
+        tags   : ["Python", "PyTorch", "CNNs", "Transfer Learning", "Computer Vision"],
+        problem: "Traffic-sign images vary in size, lighting, orientation, and appearance, so the task was to build a classifier that could recognize 43 German traffic-sign categories from image data.",
+        decisions: [
+          "Resized and normalized images for each model family, then used random flips, 15-degree rotations, and color jitter to improve generalization across visual conditions.",
+          "Compared a lightweight two-block custom CNN against ImageNet-pretrained ResNet50 and VGG16 models, using Adam, learning-rate scheduling, and ten training epochs."
+        ],
+        outcome: "VGG16 achieved the highest test accuracy at 97.40%, followed by ResNet50 at 97.22% and the custom CNN at 96.96%. The custom model offered a much lighter, faster alternative while remaining highly competitive.",
+        image  : "Image Classification.png",
+        links  : [
+          { label: "Source Code", href: "https://github.com/tahutzley/German-Traffic-Sign-Recognition" },
+          { label: "Write Up", href: "German Traffic Sign Classification Write Up.pdf" }
+        ]
+      },
+      {
+        title  : "March Madness SelfieCity-Style Visualization",
+        meta   : "March 2026 · Data Visualization Final Project",
+        summary: "An interactive visualization for exploring every March Madness team from 2013–2023 through five linked filters and a dynamic bubble chart.",
+        tags   : ["D3.js", "Data Visualization", "SVG", "Team Project"],
+        problem: "College basketball statistics are usually locked in dense spreadsheets, making it hard for casual fans to explore trends or understand what separates winning teams from the rest.",
+        decisions: [
+          "Built five interconnected filters (bracket round, win % range, year, court shooting stats, and seed) that all narrow the same underlying dataset, inspired by SelfieCity's non-traditional filtering interactions.",
+          "Designed a bottom-half bubble chart of basketballs that clusters and animates in response to the active filters, giving immediate visual feedback on how many teams match."
+        ],
+        outcome: "Delivered a fully interactive site covering 10 seasons of tournament data across 4 team members, pairing custom D3 court and bracket visualizations with a cohesive, low-clutter design.",
+        image: "March Madness.png",
+        links  : [
+          { label: "Live", href: "https://data-visualization-final-project-three.vercel.app/" }
+        ]
+      }
+    ]
+  },
+
+  earth: {
+    name    : "Earth",
+    kicker  : "Full-Stack Applications",
+    title   : "Systems built to hold weight",
+    blurb   : "Earthbending is substance and stance — you don't move until you're sure. Full-stack applications, backends, infrastructure, and the mobile app.",
+    projects: [
+      {
+        title  : "OmniLead Mobile Sales Platform",
+        meta   : "Oct 2025 - Present · Full-stack Developer",
+        summary: "A full-stack sales platform combining geospatial parcel data, team workflows, performance analytics, and AI-driven insights in a live iOS app.",
+        tags   : ["React", "TypeScript", "FastAPI", "Python", "PostgreSQL", "PostGIS"],
+        problem: "Field sales teams needed a reliable way to work address-level data, coordinate activity, and turn sales-session behavior into actionable performance insights.",
+        decisions: [
+          "Built a Python ETL pipeline to decode, normalize, validate, and load public parcel releases, scaling coverage from 400K Jacksonville addresses to 1.4M Tennessee parcels.",
+          "Designed the PostgreSQL/PostGIS schema and source-to-target mappings, tested the stack in Docker, and deployed it to Render behind a FastAPI service."
+        ],
+        outcome: "Defined KPIs with a 14-person field team; the three-week Jacksonville pilot lifted appointments set, held, and converted by roughly 12%, leading to mobile port for testing in Tennessee Summer of 2026.",
+        image: "OmniLead.png",
+        links  : [
+          { label: "App Store Link", href: "https://apps.apple.com/us/app/omnilead/id6774981944" }
+        ]
+      },
+      {
+        title  : "Hospital Navigation System",
+        meta   : "March - May 2025 · Team of 11 · Brigham and Women’s Hospital Collaboration",
+        summary: "A multi-floor hospital navigation system with graph-based routing, text directions, and elevator/stair controls.",
+        tags   : ["React", "TypeScript", "Express", "Graph Algorithms", "Agile/Scrum"],
+        problem: "Visitors needed a clearer way to navigate a complex hospital across floors and choose routes involving elevators or stairs.",
+        decisions: [
+          "Modeled the hospital as graph-based node and edge data so the backend could compute and serve routes across floors.",
+          "Led the 11-person team as Scrum Master, coordinating sprint planning, standups, retrospectives, and delivery around a live client collaboration."
+        ],
+        outcome: "Delivered a working multi-floor UI with visual pathfinding, text directions, and explicit elevator/stair routing.",
+        image: "Navigation Website.png",
+        links  : [
+          { label: "Live", href: "https://navweb-frontend.onrender.com/" },
+          { label: "Source Code", href: "https://github.com/tahutzley/Navigational-Website" }
+        ]
+      }
+    ]
+  },
+
+  fire: {
+    name    : "Fire",
+    kicker  : "Personal Projects",
+    title   : "Things made because they were interesting",
+    blurb   : "Fire is the element of drive — it goes where you point it and it burns things down when you don't. Side projects, prototypes, and work that had no deadline but got finished anyway.",
+    projects: [
+      {
+        title  : "Aimilytics — KovaaK’s Performance Analytics Platform",
+        meta   : "June - July 2026 · Personal Project",
+        summary: "A performance-analysis platform that turns high-frequency mouse telemetry, event data, and video detections into technique feedback.",
+        tags   : ["Python", "Next.js", "Telemetry", "3D Visualization"],
+        problem: "Aim-training sessions produce a lot of raw telemetry, but the useful technique issues are hard to isolate, rank, and verify by hand.",
+        decisions: [
+          "Built a Python pipeline to time-align 1,000 Hz mouse telemetry, event CSVs, and video-derived detections, auto-segmenting runs while retaining 90–95% of records after quality checks.",
+          "Ranked technique issues by prevalence, correlation, estimated cost, and confidence using reaction, path-efficiency, and overshoot metrics."
+        ],
+        outcome: "Mapped telemetry and target centroids into 3D space with sensitivity and field-of-view adjustments, hand-validating trajectory overlays before trusting derived metrics.",
+        links  : []
+      },
+      {
+        title  : "Billy Big Mouth Bass Alexa / Chatbot",
+        meta   : "June 2023 - August 2025 · Personal project",
+        summary: "A conversational full-stack system that gives an animated Billy Big Mouth Bass voice interaction through Alexa and chat.",
+        tags   : ["React", "TypeScript", "Flask", "OpenAI API", "Azure Speech"],
+        problem: "The project needed to connect conversational AI with real-time speech interaction and a physical, voice-driven character experience.",
+        decisions: [
+          "Connected a React TypeScript frontend to a Flask backend so the system could coordinate chat, speech services, and the character interface.",
+          "Integrated OpenAI APIs with Azure speech-to-text and text-to-speech, while handling asynchronous wake-word detection for hands-free interaction."
+        ],
+        outcome: "Built a working conversational system supporting real-time speech-to-text, generated responses, text-to-speech, and asynchronous wake-word detection.",
+        links  : []
+      }
+    ]
+  },
+
+  air: {
+    name    : "Air",
+    kicker  : "Who am I?",
+    title   : "How I think, and where I've been",
+    blurb   : "Air is the element of freedom — and of paying attention. This is the part where I tell you what I actually care about, in my own voice, without adjectives I'd be embarrassed to say out loud.",
+    /* The second section on this page reads "Education" instead of the
+       default "Work" — see `sectionLabel` below. */
+    sectionLabel: "Education",
+    timeline: [
+      {
+        when : "June 2025 — Present",
+        what : "AI Trainer (Freelance) · DataAnnotation",
+        note : "Wrote evaluation criteria for code generation tasks, produced golden outputs, and stress-tested model responses against those rubrics. In practice: rubric design, edge-case reasoning, and holding a consistent quality bar across a lot of ambiguous work.",
+        links: []
+      },
+      {
+        when : "March 2025 - May 2025",
+        what : "Study Abroad Research Intern · Taiwanese Institute of Economic Research",
+        note : "Lived in Taiwan for three months, conducting research on the impact that the new U.S. president Donald Trump would have on the future direction of the U.S. and Taiwanese economics. Presenting these findings through tailored policy briefs to a panel of economists.",
+        links: [
+          { label: "WPI Published Report", href: "Taiwan Research Report.pdf" },
+          { label: "Policy Briefs", href: "Taiwan Policy Briefs.pdf" }
+        ]
+      },
+      {
+        when : "May 2024 — August 2024",
+        what : "Marketing Assistant · T&R Services",
+        note : "Conducted market research to identify partnership opportunities with affiliated businesses and designed a React TypeScript testimonial page to present client feedback.",
+        links: []
+      }
+    ],
+    projects: [
+      {
+        title  : "B.S. Computer Science + Data Science",
+        meta   : "May 2026 · Worcester Polytechnic Institute",
+        summary: "3.9/4.0 GPA — Dean's List every semester.",
+        tags   : ["Computer Science", "Data Science"],
+        image  : "Degree.png",
+        links  : [
+          { label: "Official Degree", href: "https://www.parchment.com/lp/award/bc851b54-c559-4d6b-9672-626c1a6f6503" },
+          { label: "Transcript", href: "TR5AGB1F.pdf" }
+        ]
+      }
+    ]
+  }
+};
+
+/* ── Nation visual identities. Change a hex here and it propagates. ────── */
+const SKIN = {
+  water: { bg:"var(--water-ground)", lift:"#183449", accent:"var(--water-key)", mass:"var(--water-mass)" },
+  earth: { bg:"var(--earth-ground)", lift:"#26311d", accent:"var(--earth-key)", mass:"var(--earth-mass)" },
+  fire : { bg:"var(--fire-ground)",  lift:"#31130d", accent:"var(--fire-key)",  mass:"var(--fire-mass)"  },
+  air  : { bg:"var(--air-ground)",   lift:"#36271a", accent:"var(--air-key)",   mass:"var(--air-mass)"   }
+};
+
+/* Seal glyphs: an enso ring plus one abstract stroke per element.
+   Original marks — deliberately not the show's insignia. */
+const SEAL = {
+  water: 'M -22 4 C -12 -8, -2 12, 10 0 M -18 16 C -8 4, 4 22, 18 10',
+  earth: 'M -20 14 H 20 M 0 14 V -12 M -12 -2 H 12',
+  fire : 'M 0 -20 C 12 -6, 14 8, 2 18 C -10 8, -12 -4, 0 -20 M 0 6 C 5 0, 4 -7, 0 -12',
+  air  : 'M -22 -4 C -6 -16, 8 -12, 14 -2 C 18 6, 8 14, 2 8 M -20 10 C -6 2, 6 6, 16 12'
+};
+const ORDER = ["air","water","fire","earth"];
+const SEAL_POS = { air:[150,180], water:[1450,180], fire:[150,700], earth:[1450,700] };
+
+/* ╔══════════════════════════════════════════════════════════════════════╗
+   ║  Below here is machinery. You shouldn't need to edit it.             ║
+   ╚══════════════════════════════════════════════════════════════════════╝ */
+
+const $ = (s, r=document) => r.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+/* ── Hub chrome ─────────────────────────────────────────────────────────── */
+$("#hub-kicker").textContent = SITE.kicker;
+$("#hub-title").textContent  = SITE.name;
+$("#hub-line").textContent   = SITE.line;
+$("#hubFoot").innerHTML = SITE.links
+  .map(l => `<a href="${esc(l.href)}" target="_blank" rel="noopener">${esc(l.label)}</a>`).join("");
+
+/* ── Seals on the map ───────────────────────────────────────────────────── */
+$("#seals").innerHTML = ORDER.map(k => {
+  const [x,y] = SEAL_POS[k];
+  return `<g class="seal" data-seal="${k}" transform="translate(${x},${y})">
+    <g class="seal-mark">
+      <rect x="-74" y="-74" width="148" height="148" fill="var(--paper-deep)" stroke="var(--paper-edge)" stroke-width="6"/>
+      <circle r="52" fill="${SKIN[k].mass}" opacity=".9"/>
+      <circle r="52" fill="none" stroke="var(--ink)" stroke-width="3.5" opacity=".55"
+        stroke-dasharray="300 26" transform="rotate(-42)"/>
+      <path d="${SEAL[k]}" fill="none" stroke="var(--ink)" stroke-width="6.5"
+        stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+  </g>`;
+}).join("");
+
+/* ── Meander (key-fret) border: one tile, wrapped evenly around all four
+   sides of the frame so it reads as a continuous, finished border rather
+   than a run that stops partway along one edge. ─────────────────────────── */
+(function(){
+  const step = 40; // nominal spacing of one tile (28 drawn + 12 gap)
+  const sides = [
+    { len: 1428, from: [86, 34],    axis: [1, 0],  rot: 0   }, // top
+    { len: 868,  from: [1546, 66],  axis: [0, 1],  rot: 90  }, // right
+    { len: 1428, from: [1514, 966], axis: [-1, 0], rot: 180 }, // bottom
+    { len: 868,  from: [54, 934],   axis: [0, -1], rot: 270 }  // left
+  ];
+  const uses = [];
+  sides.forEach(s => {
+    const count = Math.max(1, Math.round(s.len / step));
+    const spacing = s.len / count;
+    for (let i = 0; i < count; i++){
+      const d = i * spacing;
+      const x = s.from[0] + s.axis[0] * d;
+      const y = s.from[1] + s.axis[1] * d;
+      uses.push(`<use href="#keyTile" transform="translate(${x.toFixed(2)},${y.toFixed(2)}) rotate(${s.rot})"/>`);
+    }
+  });
+  $("#meander").innerHTML = uses.join("");
+})();
+
+/* ── Panel grid: the four sections named plainly, plus the Lotus ───────────
+   Order and copy are fixed on purpose — this is the plain-language index
+   of the map above, not a restatement of each nation's own framing. */
+const PANEL_ORDER = ["air","water","fire","earth"];
+const PANEL_SUBTITLE = {
+  air  : "Who Am I?",
+  water: "Data Science & Analytics",
+  earth: "Full-Stack Applications",
+  fire : "Personal Projects"
+};
+
+function lotusSVG(){
+  const cols = [SKIN.water.accent, SKIN.earth.accent, SKIN.fire.accent, SKIN.air.accent];
+  const petal = i => `<path transform="rotate(${i*45})"
+      d="M0,-8 C 15,-30 15,-56 0,-68 C -15,-56 -15,-30 0,-8 Z"
+      fill="${cols[i%4]}" fill-opacity=".82" stroke="var(--ink)" stroke-width="2.4"/>`;
+  return `<svg viewBox="-80 -80 160 160" aria-hidden="true">
+    ${Array.from({length:8},(_,i)=>petal(i)).join("")}
+    <circle r="15" fill="var(--paper)" stroke="var(--ink)" stroke-width="3"/>
+  </svg>`;
+}
+
+$("#panelGrid").innerHTML = PANEL_ORDER.map(k => `
+    <button class="panel-card" data-nation="${k}" style="--pk:${SKIN[k].accent}">
+      ${sealSVG(k)}
+      <span class="pc-text"><b>${esc(NATIONS[k].name)}</b><i>${esc(PANEL_SUBTITLE[k])}</i></span>
+    </button>`).join("") + `
+    <button class="panel-card lotus-card" id="allBtn">
+      ${lotusSVG()}
+      <span class="pc-text">
+        <b>White Lotus</b><i>All Four Nations in Harmony</i>
+      </span>
+    </button>`;
+
+/* ── Map interaction: hover a region, its seal lights ───────────────────── */
+const map = $("#map");
+map.querySelectorAll(".region").forEach(r => {
+  const k = r.dataset.nation;
+  const seal = map.querySelector(`[data-seal="${k}"]`);
+  const on  = () => { map.parentElement.classList.add("dim"); seal.classList.add("lit"); };
+  const off = () => { map.parentElement.classList.remove("dim"); seal.classList.remove("lit"); };
+  r.addEventListener("mouseenter", on);
+  r.addEventListener("mouseleave", off);
+  r.addEventListener("focus", on);
+  r.addEventListener("blur", off);
+  r.addEventListener("click", () => go(k));
+  r.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(k); } });
+});
+$("#panelGrid").querySelectorAll("[data-nation]").forEach(b =>
+  b.addEventListener("click", () => go(b.dataset.nation)));
+$("#allBtn").addEventListener("click", () => { location.hash = "/all"; });
+
+/* ── Routing ────────────────────────────────────────────────────────────── */
+function go(k){ location.hash = "/" + k; }
+function home(){ location.hash = ""; }
+
+function wireCards(root){
+  root.querySelectorAll("[data-all]").forEach(r => {
+    const [nk, idx] = r.dataset.all.split(":");
+    r.addEventListener("click", () => openSheet(nk, +idx));
+  });
+}
+
+function route(){
+  const k = location.hash.replace(/^#\/?/, "");
+  const spoke = $("#spoke");
+  closeSheet(true);
+
+  if (k === "all") {
+    $("#hub").style.display = "none";
+    document.body.style.background = SKIN.air.bg;
+    spoke.innerHTML = renderAll();
+    spoke.className = "on allwork enter-all";
+    spoke.removeAttribute("style");
+    window.scrollTo(0,0);
+    $("#spoke .brushbtn")?.focus({preventScroll:true});
+    wireCards(spoke);
+    spoke.querySelector("[data-home]").addEventListener("click", home);
+    return;
+  }
+
+  if (!NATIONS[k]) {
+    spoke.className = ""; spoke.innerHTML = "";
+    spoke.removeAttribute("style");
+    $("#hub").style.display = "";
+    document.body.style.background = "var(--paper)";
+    return;
+  }
+  $("#hub").style.display = "none";
+  document.body.style.background = SKIN[k].bg;
+  spoke.innerHTML = renderNation(k);
+  spoke.className = "on enter-" + k;
+  spoke.style.setProperty("--bg",       SKIN[k].bg);
+  spoke.style.setProperty("--bg-lift",  SKIN[k].lift);
+  spoke.style.setProperty("--accent",   SKIN[k].accent);
+  spoke.style.setProperty("--fg",       "var(--paper)");
+  spoke.style.setProperty("--fg-soft",  "rgba(217,203,171,.72)");
+  spoke.style.setProperty("--hair",     "rgba(217,203,171,.20)");
+  window.scrollTo(0,0);
+  $("#spoke .brushbtn")?.focus({preventScroll:true});
+
+  wireCards(spoke);
+  spoke.querySelector("[data-home]")?.addEventListener("click", home);
+}
+
+function sealSVG(k){
+  return `<svg viewBox="-80 -80 160 160" aria-hidden="true">
+    <circle r="60" fill="${SKIN[k].mass}" opacity=".16"/>
+    <circle r="60" fill="none" stroke="${SKIN[k].accent}" stroke-width="4"
+      stroke-dasharray="350 30" transform="rotate(-42)"/>
+    <path d="${SEAL[k]}" fill="none" stroke="${SKIN[k].accent}" stroke-width="8"
+      stroke-linecap="round" stroke-linejoin="round" transform="scale(1.5)"/>
+  </svg>`;
+}
+
+/* ── Nation body — the header, path timeline, and project cards for one
+   nation. Shared by its own spoke page (renderNation) and by the all-work
+   compilation (nationSection), so both render identically. ────────────── */
+function nationBody(k){
+  const n = NATIONS[k];
+  const label = n.sectionLabel || "Work";
+  const tl = (n.timeline || []).length ? `
+    <h2 class="sec-label">Path</h2>
+    <div class="timeline">${n.timeline.map(t => `
+      <div class="tl-item">
+        <div class="tl-when">${esc(t.when)}</div>
+        <div>
+          <h3>${esc(t.what)}</h3>
+          <p>${esc(t.note)}</p>
+          ${(t.links||[]).length ? `<div class="link-row">${t.links.map(l =>
+            `<a href="${esc(l.href)}" target="_blank" rel="noopener noreferrer">${esc(l.label)}</a>`).join("")}</div>` : ""}
+        </div>
+      </div>`).join("")}</div>` : "";
+
+  const cards = (n.projects || []).length
+    ? `<div class="grid">${n.projects.map((p,i) => `
+        <button class="card" data-all="${k}:${i}">
+          <div class="card-body">
+            ${p.meta ? `<p class="meta">${esc(p.meta)}</p>` : ""}
+            <h3>${esc(p.title)}</h3>
+            ${p.summary ? `<p>${esc(p.summary)}</p>` : ""}
+            ${(p.tags||[]).length ? `<div class="tags">${p.tags.map(t =>
+              `<span class="tag-chip">${esc(t)}</span>`).join("")}</div>` : ""}
+          </div>
+          <div class="card-media">${p.image ? `<img src="${esc(p.image)}" alt="">` : ""}</div>
+        </button>`).join("")}</div>`
+    : `<div class="empty">No ${esc(label.toLowerCase())} filed under ${esc(n.name)} yet. Add entries to
+       <code>NATIONS.${k}.projects</code>.</div>`;
+
+  return `
+    <header class="spoke-head">
+      ${sealSVG(k)}
+      <div>
+        <p class="spoke-kicker">${esc(n.kicker)}</p>
+        <h1 class="spoke-title">${esc(n.title)}</h1>
+        <p class="spoke-blurb">${esc(n.blurb)}</p>
+      </div>
+    </header>
+    ${tl}
+    <h2 class="sec-label">${esc(label)}</h2>
+    ${cards}`;
+}
+
+function spokeTop(symbol, label){
+  return `<div class="spoke-top">
+      <button class="brushbtn" data-home><span>&#8592;</span> Back to the map</button>
+      <span class="spoke-symbol" role="img" aria-label="${esc(label)}">${symbol}</span>
+    </div>`;
+}
+
+function renderNation(k){
+  const n = NATIONS[k];
+  return `<div class="wrap">
+    ${spokeTop(sealSVG(k), n.name)}
+    ${nationBody(k)}
+  </div>`;
+}
+
+/* Each nation's block on the all-work page carries its own full-bleed
+   background and foreground colors — exactly the palette route() applies
+   to #spoke when you visit that nation on its own. An optional `topBar`
+   is threaded onto the first section so the page opens straight into that
+   nation's colors instead of a separate neutral strip of chrome. */
+function nationSection(k, topBar=""){
+  return `<section class="nation-block" style="--bg:${SKIN[k].bg};--bg-lift:${SKIN[k].lift};
+    --accent:${SKIN[k].accent};--fg:var(--paper);--fg-soft:rgba(217,203,171,.72);
+    --hair:rgba(217,203,171,.20)">
+    <div class="wrap">${topBar}${nationBody(k)}</div>
+  </section>`;
+}
+
+function renderAll(){
+  const topBar = spokeTop(lotusSVG(), "White Lotus — all four nations");
+  return PANEL_ORDER.map((k, i) => nationSection(k, i === 0 ? topBar : "")).join("");
+}
+
+/* ── Detail sheet ───────────────────────────────────────────────────────── */
+let lastFocus = null;
+function openSheet(k, i){
+  const p = NATIONS[k].projects[i];
+  lastFocus = document.activeElement;
+  const sheet = $("#sheet"), panel = $("#panel");
+  panel.style.cssText = `--bg:${SKIN[k].lift};--fg:var(--paper);
+    --fg-soft:rgba(217,203,171,.74);--accent:${SKIN[k].accent};--hair:rgba(217,203,171,.22)`;
+  panel.innerHTML = `<div class="sheet-inner">
+    <button class="brushbtn" data-close style="color:var(--fg)"><span>&#8592;</span> Close</button>
+    ${p.meta ? `<p class="meta" style="color:var(--accent);font-size:var(--t--1);
+      letter-spacing:.2em;text-transform:uppercase;margin:2rem 0 0">${esc(p.meta)}</p>` : ""}
+    <h2>${esc(p.title)}</h2>
+    ${p.summary ? `<p class="lede">${esc(p.summary)}</p>` : ""}
+    ${p.image ? `<div class="sheet-media"><img src="${esc(p.image)}" alt=""></div>` : ""}
+    ${(p.links||[]).length ? `<div class="link-row">${p.links.map(l =>
+      `<a href="${esc(l.href)}" target="_blank" rel="noopener noreferrer">${esc(l.label)}</a>`).join("")}</div>` : ""}
+    ${p.problem ? `<h4>The problem</h4><p>${esc(p.problem)}</p>` : ""}
+    ${(p.decisions||[]).length ? `<h4>Decisions</h4><ul>${
+      p.decisions.map(d => `<li>${esc(d)}</li>`).join("")}</ul>` : ""}
+    ${p.outcome ? `<h4>Outcome</h4><p>${esc(p.outcome)}</p>` : ""}
+  </div>`;
+  sheet.classList.add("on");
+  document.body.style.overflow = "hidden";
+  requestAnimationFrame(() => sheet.classList.add("in"));
+  panel.querySelector("[data-close]").focus();
+  panel.querySelectorAll("[data-close]").forEach(b =>
+    b.addEventListener("click", () => closeSheet()));
+}
+function closeSheet(instant){
+  const sheet = $("#sheet");
+  if (!sheet.classList.contains("on")) return;
+  sheet.classList.remove("in");
+  document.body.style.overflow = "";
+  const kill = () => { sheet.classList.remove("on"); $("#panel").innerHTML = ""; };
+  instant ? kill() : setTimeout(kill, 380);
+  lastFocus?.focus?.();
+}
+$("#sheet .scrim").addEventListener("click", () => closeSheet());
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape") { $("#sheet").classList.contains("on") ? closeSheet() : home(); }
+});
+
+window.addEventListener("hashchange", route);
+route();
+setTimeout(() => $("#hub").classList.remove("boot"), 2600);
+</script>

@@ -1,0 +1,127 @@
+/* ═══ TOKENS ══════════════════════════════════════════════════════════════
+   The single source of truth for the whole site. Change a value here and it
+   propagates everywhere. Transferred unchanged from the original file except
+   where noted. */
+
+:root{
+  /* Shared ground — the parchment the whole scroll is mounted on */
+  --paper:        #b8a276;
+  --paper-deep:   #a08a5f;
+  --paper-edge:   #86713f;
+  --ink:          #241c14;
+  --ink-soft:     #4a3b2a;
+  --ink-faint:    rgba(36,28,20,.42);
+  /* One step below --ink, reserved for edges that have to read as HARD
+     against a coloured field rather than as drawn-on-paper. Currently just
+     the seal rings — at --ink they sat close enough to the mass colour
+     under them that a heavy stroke read as thick rather than as sharp. */
+  --ink-deep:     #140e08;
+
+  /* Parchment grain — fine isotropic noise, tiled seamlessly (stitchTiles)
+     so no repeat seam or directional streak is visible, kept to a low
+     rect opacity so it reads as a faint irregularity in the paper rather
+     than a pattern. Baked into each surface's own background via
+     background-blend-mode, so it always sits beneath content rather than
+     being an overlay drawn on top of cards or links. */
+  --grain-img: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='260' height='260'><filter id='p' x='0%25' y='0%25' width='100%25' height='100%25'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' seed='7' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/></filter><rect width='260' height='260' filter='url(%23p)' opacity='0.14'/></svg>");
+
+  /* Ocean — the connective tissue between every nation.
+     --sea-line lifted from #5d5a8c: against --sea-deep that was a soft pair,
+     and the seigaiha arcs need to read as distinctly brighter than the field
+     the way the reference poster's do. --sea-shadow is new — the dropped
+     copy under each arc that gives the wave-scales their quilted relief.
+     See the SEIGAIHA block in map/mapSvg.js. */
+  --sea:          #3a3760;
+  --sea-deep:     #2b2949;
+  --sea-line:     #6f6ca6;
+  --sea-shadow:   #1e1c35;
+
+  /* Nation grounds — each spoke sits on its own earth.
+     The mass / key / glow triples were re-mixed for saturation: every one
+     gained 6–10 points of HSL S so the four nations hold their own against
+     the seigaiha field, which is a deep saturated purple and was quietly
+     out-colouring the land. Three of them also moved in hue or lightness:
+
+       water  hue 203° → ~190°, i.e. off pure sky-blue and into teal
+       earth  ~5 points DARKER, so it stops competing with air's near-white
+       air    lighter still — the mountain isles read as bleached stone
+
+     Grounds (the per-spoke page backgrounds) are deliberately untouched.
+     They are backdrops for body text and any saturation added there costs
+     contrast. GLOW_HEX in data/skin.js mirrors the four --*-glow values as
+     literals for the SVG filters — change one, change both. */
+  --water-ground: #12283c;  --water-mass: #b0dfe9;  --water-key: #66c2d6;  --water-glow: #cfeff7;
+  --earth-ground: #1d2716;  --earth-mass: #e0c98a;  --earth-key: #7c9f38;  --earth-glow: #ecdcab;
+  --fire-ground:  #240d09;  --fire-mass:  #e87730;  --fire-key:  #d33f12;  --fire-glow:  #f8ae59;
+  --air-ground:   #2a1e12;  --air-mass:   #f6f4ee;  --air-key:   #e49221;  --air-glow:   #fbf8f0;
+
+  /* Type scale — major third (1.25), fluid */
+  --t--1: clamp(.72rem, .70rem + .12vw, .80rem);
+  --t-0:  clamp(1rem, .96rem + .18vw, 1.09rem);
+  --t-1:  clamp(1.20rem, 1.13rem + .30vw, 1.36rem);
+  --t-2:  clamp(1.44rem, 1.32rem + .52vw, 1.70rem);
+  --t-3:  clamp(1.73rem, 1.53rem + .86vw, 2.13rem);
+  --t-4:  clamp(2.07rem, 1.75rem + 1.38vw, 2.66rem);
+  --t-5:  clamp(2.49rem, 1.98rem + 2.20vw, 3.33rem);
+
+  /* PHASE 1 CHANGE — was a platform-dependent stack of Palatino Linotype /
+     Iowan Old Style / Georgia, which resolved to three different typefaces
+     depending on the visitor's OS (and to bare `serif` on Linux/Android).
+     Now one real webfont, consistent everywhere.
+     TODO: self-host as .woff2 to drop the Google Fonts round-trip. */
+  --face-serif:   "Spectral", Georgia, "Times New Roman", serif;
+  --face-body:    ui-sans-serif,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;
+
+  /* Emphasis — reserved for the handful of proper-noun labels: the site
+     name and the four elements. Herculanum ships with
+     macOS/iOS but isn't a webfont we can legally self-host without a
+     license, so non-Apple visitors fall through to Cinzel (also loaded
+     from Google Fonts) — a carved-capitals face that keeps the same
+     "chiseled stone" register instead of collapsing to the body serif. */
+  --face-emphasis: Herculanum, Cinzel, var(--face-serif), serif;
+
+  --measure: 62ch;
+  --ease-ink: cubic-bezier(.22,.68,.24,1);
+
+  /* Motion timings — one place so the whole site stays in step */
+  --dur-hover:  .45s;
+}
+
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0;
+  background:var(--paper);
+  color:var(--ink);
+  font:var(--t-0)/1.65 var(--face-body);
+  overflow-x:hidden;
+}
+
+/* ═══ SCROLLBARS ══════════════════════════════════════════════════════════
+   The page scroll and the detail sheet's own inner scroll are two separate
+   scrolling boxes (window vs. element), which browsers render with
+   different default chrome. Style both explicitly so they paint identically. */
+html,#sheet .panel{
+  scrollbar-width:thin;
+  scrollbar-color:var(--ink-soft) var(--paper-deep);
+}
+html::-webkit-scrollbar,#sheet .panel::-webkit-scrollbar{width:12px}
+html::-webkit-scrollbar-track,#sheet .panel::-webkit-scrollbar-track{background:var(--paper-deep)}
+html::-webkit-scrollbar-thumb,#sheet .panel::-webkit-scrollbar-thumb{
+  background:var(--ink-soft);border-radius:7px;border:3px solid var(--paper-deep)}
+html::-webkit-scrollbar-thumb:hover,#sheet .panel::-webkit-scrollbar-thumb:hover{background:var(--ink)}
+
+::selection{background:var(--ink);color:var(--paper)}
+:focus-visible{outline:2.5px solid currentColor;outline-offset:4px;border-radius:2px}
+
+/* ═══ SHARED PARTS ════════════════════════════════════════════════════════
+   `.cartouche` and `.rule` lived here in the original and were never
+   emitted by any renderer. Dropped. */
+.brushbtn{
+  font:600 var(--t--1)/1 var(--face-body);
+  letter-spacing:.16em;text-transform:uppercase;
+  background:none;border:0;color:inherit;cursor:pointer;
+  padding:.9em 0;display:inline-flex;gap:.7em;align-items:center;
+}
+.brushbtn span{display:inline-block;transition:transform .35s var(--ease-ink)}
+.brushbtn:hover span:first-child{transform:translateX(-5px)}

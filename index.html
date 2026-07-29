@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Timothy Hutzley — Portfolio</title>
+  <meta name="description" content="Computer Science and Data Science portfolio — data work, full-stack applications, and personal projects.">
+
+  <meta property="og:title" content="Timothy Hutzley — Portfolio">
+  <meta property="og:description" content="Computer Science and Data Science portfolio.">
+  <meta property="og:type" content="website">
+
+  <!-- Inline enso-ring favicon: no extra request, no /favicon.ico 404. -->
+  <link rel="icon" href="data:image/svg+xml,<svg%20xmlns='http://www.w3.org/2000/svg'%20width='32'%20height='32'%20viewBox='0%200%2032%2032'><rect%20width='32'%20height='32'%20fill='%23d9cbab'/><circle%20cx='16'%20cy='16'%20r='10'%20fill='none'%20stroke='%23241c14'%20stroke-width='3'%20stroke-dasharray='58%206'%20transform='rotate(-42%2016%2016)'/></svg>">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Spectral:wght@400;500;600&family=Cinzel:wght@500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+
+  <!-- ══════════════════ HUB — the scroll ══════════════════ -->
+  <main id="hub" class="boot">
+    <header class="hub-head">
+      <h1 class="hub-name"><span id="hub-title"></span></h1>
+      <p class="hub-line" id="hub-line"></p>
+    </header>
+
+    <!-- Map SVG is injected here by src/map/mapSvg.js -->
+    <div class="map-frame" id="mapFrame"></div>
+
+    <!-- Small-screen (<880px) navigation. The map's own regions/seals are
+         the tap targets (see map/hover.js's tap-to-select), and this bar is
+         where a selection surfaces — see CARTOUCHE-PLAN.md §6. Real
+         <button> so Enter/Space and the accessible name come free. -->
+    <button class="map-bar" id="mapBar" type="button">
+      <span class="mb-hint">Tap a region on the map.</span>
+      <span class="mb-content">
+        <span class="mb-name"></span>
+        <span class="mb-desc"></span>
+        <span class="mb-arrow" aria-hidden="true">→</span>
+      </span>
+    </button>
+    <a class="map-all" id="allBtn" href="#/all">All Work</a>
+
+    <nav class="hub-foot" id="hubFoot"></nav>
+  </main>
+
+  <!-- ══════════════════ SPOKE — a nation ══════════════════ -->
+  <section id="spoke" aria-live="polite"></section>
+
+  <!-- ══════════════════ DETAIL SHEET ══════════════════ -->
+  <div id="sheet" role="dialog" aria-modal="true" aria-label="Project detail">
+    <div class="scrim" data-close></div>
+    <div class="panel" id="panel"></div>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

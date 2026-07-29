@@ -1,0 +1,189 @@
+/* ═══ ELEMENTAL TRANSITIONS ═══════════════════════════════════════════════
+   One system, four dialects. Air drifts, water wipes, earth lands hard,
+   fire flares. Transform + opacity only — nothing that triggers layout.
+
+   PHASE 6 will replace these with full-screen masked reveals. They are
+   deliberately left in place for now so the site is never in a broken
+   intermediate state. */
+@keyframes air-in  {from{opacity:0;transform:translateY(-22px) scale(1.012);filter:blur(5px)}
+                    to  {opacity:1;transform:none;filter:none}}
+@keyframes water-in{from{opacity:0;transform:translateX(-40px)}
+                    to  {opacity:1;transform:none}}
+@keyframes earth-in{0%{opacity:0;transform:translateY(46px)}
+                    72%{opacity:1;transform:translateY(-4px)}
+                    100%{transform:none}}
+@keyframes fire-in {0%{opacity:0;transform:scale(.965);filter:brightness(2.1) saturate(.4)}
+                    45%{opacity:1;filter:brightness(1.35)}
+                    100%{transform:none;filter:none}}
+@keyframes plain-in{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+
+.enter-air   .wrap{animation:air-in   .70s var(--ease-ink) both}
+.enter-water .wrap{animation:water-in .60s var(--ease-ink) both}
+.enter-earth .wrap{animation:earth-in .55s cubic-bezier(.3,.9,.2,1) both}
+.enter-fire  .wrap{animation:fire-in  .55s var(--ease-ink) both}
+.enter-all   .wrap{animation:plain-in .50s var(--ease-ink) both}
+
+/* ═══ LOAD SEQUENCE FOR THE MAP ═══════════════════════════════════════════
+   The frame and ocean paint first. Then the timelapse: all 28 islands draw
+   their borders in one at a time, and a second pass fills each in the same
+   order. Then inland detail, then labels and seals.
+
+   The timelapse itself lives in map/boot.js as a GSAP timeline — 28 masses
+   × 2 passes × a per-mass duration scaled by that mass's own perimeter is
+   past what per-element animation-delay arithmetic can express readably.
+   What stays here is the INITIAL STATE, which CSS is still the right tool
+   for: it applies on frame one, before any module has run, so there is no
+   window in which a fully-drawn map could flash.
+
+   Division of labour, and it matters for the hover system: CSS owns the
+   at-rest state, GSAP owns the transition, and boot.js is under a standing
+   rule never to tween a property the hover cascade uses. See its header. */
+
+/* These keyframes declare only `from`. That's deliberate: an omitted `to`
+   resolves to the element's own computed value, so each element fades up to
+   whatever opacity it actually rests at rather than being forced to 1.
+
+   The previous form — `@keyframes fade-in{to{opacity:1}}` paired with an
+   `opacity:0` override — drove every .detail group to full opacity and then
+   snapped it back to its real value the moment `.boot` was removed at
+   2600ms. The frame, the bevel, the meander, the smoke curls and the seals
+   all popped. With `both` fill-mode the `from` value covers the delay
+   window, so nothing needs the CSS override that caused it. */
+@keyframes fade-in{from{opacity:0}}
+@keyframes rise{from{opacity:0;transform:translateY(14px)}}
+
+/* A seal arrives rather than fades: it comes in a shade oversized and
+   settles onto the chart. Same implicit-`to` trick as fade-in — the
+   element's own computed transform and opacity are the destination. */
+@keyframes stamp-in{from{opacity:0;transform:scale(1.13)}}
+
+/* The masses' start-of-boot state, and nothing else — every mass hidden
+   behind its own fully-offset dash pattern with its fill held back. GSAP
+   animates out of exactly this in map/boot.js.
+
+   No `animation` here any more, and that retires a documented trap rather
+   than just moving it. There used to be a second rule for `.coast` (the
+   seven masses flagged as major) carrying a competing `animation` shorthand
+   at identical (0,2,0) specificity, so source order alone decided which
+   animation-name won — and when it lost, coastlines sat invisible for the
+   whole boot then snapped on in a single frame. All 28 masses draw now, so
+   the `coast` flag and the `.coast` class are both gone from the data and
+   from here. One class, nothing left to lose to.
+
+   --ink-len is per element, written by mapSvg.js from that mass's real
+   perimeter via pathLength(). A shared magic number stopped working the
+   moment more than one mass needed a draw-in, since no two perimeters match.
+
+   Scoped to .boot on purpose: setting the dash pair as plain attributes
+   would hide every coastline permanently once .boot is removed, because
+   nothing outside this rule ever puts the offset back to 0. Same reason
+   fill-opacity is scoped here rather than set on the path. */
+.boot .mass{
+  stroke-dasharray:var(--ink-len);
+  stroke-dashoffset:var(--ink-len);
+  fill-opacity:0;
+}
+
+/* Both pushed back behind the timelapse. Measured sequence: borders sweep
+   220→1434ms, fills run 1314→2426ms. At their old .95s/1.3s these landed on
+   islands that were still bare outlines — mountain ranges and city rings
+   floating on blank paper, and the seals lighting before the map they
+   belong to existed.
+
+   Detail starts at 2.05s, roughly two-thirds through the fill pass rather
+   than after it. The 0.8s fade is gentle enough that it reads as ink
+   settling into land that is still arriving, and waiting for the last islet
+   to fill left a visible dead beat. It finishes at 2.85s, comfortably after
+   the last fill at 2.43s. Seals land last, as they always did.
+
+   These are hand-synced to boot.js's timeline and are the one place that
+   can still drift. If the constants there change, the dev console line
+   boot.js prints on every load reports the real fill-end to re-sync
+   against. Both stay in CSS: the detail fade isn't staggered at all, and
+   the seals stagger off a custom property rather than off measured
+   geometry, so neither needs anything only JS can compute. boot.js is
+   under a standing rule not to tween opacity or transform (see its header),
+   which is the other half of why these live here.
+
+   CAUTION — these two rules run PAST the end of boot.js's tween timeline,
+   and dropping .boot unmatches them mid-flight, which cancels the animation
+   and snaps the element straight to its rest style. boot.js therefore holds
+   the timeline open until the last seal has landed; SEAL_LAST_END there is
+   derived from the four numbers below. Change a delay or a duration here
+   and that constant has to move with it, or the seals go back to popping. */
+.boot .detail{animation:fade-in .8s 2.05s var(--ease-ink) both}
+
+/* The four corners stamp themselves in one at a time, in the order
+   SEAL_ORDER declares — air, water, fire, earth. `--seal-i` is that
+   nation's index, written onto each .seal by map/seals.js and inherited
+   down to the .seal-stamp wrapper.
+
+   Shorthand first, then the delay longhand: `animation` resets
+   animation-delay to 0, so the calc() has to come after it to survive. */
+.seal .seal-stamp{transform-box:fill-box;transform-origin:center}
+.boot .seal-stamp{
+  animation:stamp-in .55s var(--ease-ink) both;
+  animation-delay:calc(2.4s + var(--seal-i,0) * .2s);
+}
+
+/* Driving .seal-stamp rather than .seal is what keeps this clear of the
+   hover system. The old rule animated opacity on .seal itself, which the
+   cascade also uses for rest (.88), lit (1) and the touch-device override
+   in responsive.css — an arrangement that only worked because the
+   keyframes declared `from` alone and let the implicit `to` resolve to
+   whatever the cascade said. .seal-stamp is a wrapper nothing else styles,
+   so opacity and transform here are uncontested and there is no
+   `.boot .seal.lit` case left to reason about. */
+
+/* The glow layer is driven purely by hover state and must stay dark
+   through the boot sequence. `.region.is-hot .glow-layer` (0,3,0) still
+   outranks this (0,2,0), so hovering during the boot window works — now a
+   ~3.2s window rather than 2.6s, so it matters slightly more than it did.
+
+   boot.js is forbidden from tweening glow-layer opacity for the same
+   reason: an inline value would outrank both selectors and either kill the
+   hover glow during boot or strand the glow visible after it. */
+.boot .glow-layer{opacity:0}
+
+/* ── Reduced-motion escape hatch ──────────────────────────────────────────
+   reducedMotion.js mirrors the media query onto <html> so JS-driven and
+   CSS-driven branches can't disagree. The map's staged load is the one
+   piece of motion that runs unprompted on arrival, so it's skipped
+   entirely rather than merely shortened.
+
+   fill-opacity:1 is not optional. The `.boot .mass` rule above now hides
+   every fill as well as every stroke, so a reduced-motion visitor who only
+   got the dash pattern reset would be looking at an entirely blank ocean.
+   Both halves of that rule have to be undone together. */
+.reduced-motion .boot .mass{
+  stroke-dasharray:none;
+  stroke-dashoffset:0;
+  fill-opacity:1;
+}
+.reduced-motion .boot .detail,
+.reduced-motion .boot .seal-stamp{animation:none}
+
+.hub-head{animation:rise .8s var(--ease-ink) both}
+.hub-foot{animation:rise .8s .25s var(--ease-ink) both}
+
+/* ═══ REDUCED MOTION ══════════════════════════════════════════════════════
+   Kills CSS animation and transition. Note this does NOT catch GSAP, which
+   writes inline styles directly — see src/motion/reducedMotion.js for the
+   JS-side branch that handles that. Both layers are required. */
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{
+    animation-duration:.001ms!important;
+    animation-delay:0ms!important;
+    animation-iteration-count:1!important;
+    transition-duration:.001ms!important;
+  }
+  /* Same reasoning as the .reduced-motion block above — the fill has to be
+     released alongside the stroke, or the map renders blank. */
+  .boot .mass{stroke-dasharray:none;stroke-dashoffset:0;fill-opacity:1}
+
+  /* Belt-and-suspenders alongside the blanket rule above: the cartouche
+     open/close is a scaleX unfold plus a text fade, and reduced-motion
+     visitors get an instant cut rather than a near-zero-duration tween. */
+  .cart-body{transition:none}
+  .cart-name,.cart-desc,.cart-arrow{transition:none}
+}

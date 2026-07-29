@@ -1,0 +1,84 @@
+/* ═══ SPOKE — a nation ════════════════════════════════════════════════════
+   Same parchment-fiber texture as #hub, blended with soft-light instead of
+   multiply — multiply would just crush the grain into these dark grounds. */
+#spoke{
+  display:none;min-height:100dvh;color:var(--fg);
+  background-color:var(--bg);
+  background-image:var(--grain-img);
+  background-blend-mode:soft-light;
+  background-size:260px 260px;
+}
+#spoke.on{display:block}
+.wrap{width:min(100%,1100px);margin-inline:auto;padding:clamp(1.5rem,4vw,3.5rem) clamp(1.1rem,4vw,2.5rem)}
+
+.spoke-top{display:flex;justify-content:space-between;align-items:center;gap:1rem;
+  padding-bottom:2.5rem}
+.spoke-top .brushbtn{color:var(--fg)}
+.spoke-top .spoke-symbol{display:inline-flex;flex:none}
+.spoke-top .spoke-symbol svg{width:clamp(30px,4vw,42px);height:clamp(30px,4vw,42px);display:block}
+
+.spoke-head{display:grid;grid-template-columns:auto 1fr;gap:clamp(1.2rem,3vw,2.4rem);
+  align-items:start;padding-bottom:clamp(2rem,5vw,3.5rem)}
+.spoke-head svg{width:clamp(74px,11vw,116px);height:auto;flex:none}
+.spoke-kicker{font-size:var(--t--1);letter-spacing:.34em;text-transform:uppercase;
+  color:var(--accent);margin:0 0 .7em}
+.spoke-title{font-family:var(--face-serif);font-weight:500;font-size:var(--t-4);
+  line-height:1.05;margin:0}
+.spoke-blurb{margin:1.1em 0 0;max-width:var(--measure);color:var(--fg-soft);font-size:var(--t-1);
+  line-height:1.6;font-family:var(--face-serif)}
+
+.sec-label{display:flex;align-items:baseline;gap:1rem;margin:0 0 1.8rem;
+  font-size:var(--t--1);letter-spacing:.3em;text-transform:uppercase;color:var(--accent)}
+.sec-label::after{content:"";flex:1;height:1px;background:currentColor;opacity:.32}
+
+/* Projects stack one per row (no auto-fill columns) — each row splits into
+   the write-up on the left and a reserved slot on the right for a project
+   image. With no image set, that slot just stays blank paper. */
+.grid{display:grid;gap:1px;background:var(--hair);border:1px solid var(--hair)}
+.card{background:var(--bg);padding:clamp(1.4rem,3vw,2rem);
+  display:grid;grid-template-columns:1fr minmax(220px,38%);gap:clamp(1.2rem,3vw,2.2rem);
+  text-align:left;font:inherit;color:inherit;border:0;cursor:pointer;
+  transition:background .35s var(--ease-ink)}
+.card:hover,.card:focus-visible{background:var(--bg-lift)}
+.card-body{display:flex;flex-direction:column;gap:.9rem;min-width:0}
+.card h3{font-family:var(--face-serif);font-weight:500;font-size:var(--t-2);margin:0;line-height:1.15}
+.card .meta{font-size:var(--t--1);letter-spacing:.2em;text-transform:uppercase;color:var(--accent);margin:0}
+.card-body p{margin:0;color:var(--fg-soft);font-size:var(--t-0);font-family:var(--face-serif)}
+.card-media{background:var(--bg-lift);min-height:140px;border:1px solid var(--hair)}
+.card-media img{width:100%;height:100%;object-fit:cover;display:block}
+.tags{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:auto;padding-top:.5rem}
+.tag-chip{font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;
+  border:1px solid var(--hair);padding:.35em .7em;color:var(--fg-soft)}
+
+.timeline{display:grid;gap:1px;background:var(--hair);border:1px solid var(--hair);margin-bottom:3.5rem}
+.tl-item{background:var(--bg);padding:clamp(1.4rem,3vw,2rem);
+  display:grid;grid-template-columns:minmax(150px,220px) 1fr;gap:1.4rem}
+.tl-when{font-size:var(--t--1);letter-spacing:.2em;text-transform:uppercase;color:var(--accent)}
+.tl-item h3{font-family:var(--face-serif);font-weight:500;font-size:var(--t-2);margin:0 0 .5em}
+.tl-item p{margin:0;color:var(--fg-soft);max-width:var(--measure);font-family:var(--face-serif)}
+
+/* Shared link-button row — used in the detail sheet and timeline entries. */
+.link-row{display:flex;flex-wrap:wrap;gap:.7rem;margin-top:1.1rem}
+.link-row a{color:var(--fg);text-decoration:none;border:1px solid var(--hair);
+  padding:.65em 1.15em;font-size:var(--t--1);letter-spacing:.14em;text-transform:uppercase}
+.link-row a:hover{background:var(--bg-lift)}
+
+.empty{border:1px dashed var(--hair);padding:2.4rem;color:var(--fg-soft);text-align:center;
+  font-size:var(--t-0);font-family:var(--face-serif)}
+
+/* ═══ ALL WORK — every nation's spoke, stacked in one scroll ═════════════
+   Each nation-block below renders the exact same header/timeline/card
+   markup as its individual spoke page (see nationBody()), just wrapped in
+   its own full-bleed background band instead of taking over the whole
+   viewport. The page opens straight into Air's colors — the back button
+   and symbol live inside the first (Air) block, not a separate strip. */
+.allwork{--bg:var(--paper);--fg:var(--ink);--fg-soft:var(--ink-soft);
+  --accent:var(--ink-soft);--hair:rgba(36,28,20,.22);--bg-lift:rgba(255,255,255,.28)}
+
+.nation-block{
+  background-color:var(--bg);
+  background-image:var(--grain-img);
+  background-blend-mode:soft-light;
+  background-size:260px 260px;
+  color:var(--fg);
+}
