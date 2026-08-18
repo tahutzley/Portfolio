@@ -4,7 +4,7 @@ export default defineConfig({
   /* Relative base — required for self-hosting from a subdirectory.
      With the default '/' every asset URL would be absolute and break
      the moment the site isn't served from a domain root. */
-  base: './',
+  base: '/Portfolio/',
 
   build: {
     outDir: 'dist',
